@@ -147,6 +147,10 @@ GitHub.sublime-settings
 service-account-key.json
 *.json
 
+# Django migrations
+*/migrations/*.py
+!*/migrations/__init__.py
+
 DOCKER_README.md
 README.md
 PRODUCTION_SETUP.md
