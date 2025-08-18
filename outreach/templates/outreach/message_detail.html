@@ -1,0 +1,260 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Message Details - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="display-5">
+                <i class="fas fa-envelope text-primary me-3"></i>
+                Message Details
+            </h1>
+            <a href="{% url 'outreach:campaign_overview' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Campaigns
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Message Information -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Message Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Message ID:</strong></td>
+                                <td>{{ message.id }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Status:</strong></td>
+                                <td>
+                                    <span class="status-badge status-{{ message.status }}">
+                                        {% if message.status == 'pending' %}
+                                            <i class="fas fa-clock me-1"></i>
+                                        {% elif message.status == 'sent' %}
+                                            <i class="fas fa-paper-plane me-1"></i>
+                                        {% elif message.status == 'delivered' %}
+                                            <i class="fas fa-check me-1"></i>
+                                        {% elif message.status == 'read' %}
+                                            <i class="fas fa-eye me-1"></i>
+                                        {% elif message.status == 'failed' %}
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                        {% endif %}
+                                        {{ message.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Campaign:</strong></td>
+                                <td>{{ message.campaign.name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Channel:</strong></td>
+                                <td>
+                                    <span class="channel-badge channel-{{ message.campaign.channel }}">
+                                        {% if message.campaign.channel == 'email' %}
+                                            <i class="fas fa-envelope me-1"></i>EMAIL
+                                        {% elif message.campaign.channel == 'sms' %}
+                                            <i class="fas fa-sms me-1"></i>SMS
+                                        {% elif message.campaign.channel == 'whatsapp' %}
+                                            <i class="fas fa-whatsapp me-1"></i>WHATSAPP
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Provider:</strong></td>
+                                <td>{{ message.campaign.get_provider_display }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Sent Date:</strong></td>
+                                <td>
+                                    {% if message.sent_at %}
+                                        {{ message.sent_at|date:"M d, Y H:i:s" }}
+                                    {% else %}
+                                        <span class="text-muted">Not sent yet</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Delivered Date:</strong></td>
+                                <td>
+                                    {% if message.delivered_at %}
+                                        {{ message.delivered_at|date:"M d, Y H:i:s" }}
+                                    {% else %}
+                                        <span class="text-muted">Not delivered yet</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Read Date:</strong></td>
+                                <td>
+                                    {% if message.read_at %}
+                                        {{ message.read_at|date:"M d, Y H:i:s" }}
+                                    {% else %}
+                                        <span class="text-muted">Not read yet</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                {% if message.error_message %}
+                <div class="alert alert-danger mt-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Error:</strong> {{ message.error_message }}
+                </div>
+                {% endif %}
+                
+                {% if message.external_id %}
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-external-link-alt me-2"></i>
+                    <strong>External ID:</strong> {{ message.external_id }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Customer Information -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-user me-2"></i>
+                    Customer Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ message.customer.name }}</h6>
+                
+                {% if message.customer.email %}
+                <div class="mb-2">
+                    <i class="fas fa-envelope me-2 text-muted"></i>
+                    <a href="mailto:{{ message.customer.email }}">{{ message.customer.email }}</a>
+                </div>
+                {% endif %}
+                
+                {% if message.customer.phone %}
+                <div class="mb-2">
+                    <i class="fas fa-phone me-2 text-muted"></i>
+                    <a href="tel:{{ message.customer.phone }}">{{ message.customer.phone }}</a>
+                </div>
+                {% endif %}
+                
+                {% if message.customer.address %}
+                <div class="mb-2">
+                    <i class="fas fa-map-marker-alt me-2 text-muted"></i>
+                    {{ message.customer.address }}
+                </div>
+                {% endif %}
+                
+                {% if message.customer.job_link %}
+                <div class="mb-2">
+                    <i class="fas fa-link me-2 text-muted"></i>
+                    <a href="{{ message.customer.job_link }}" target="_blank" class="text-decoration-none">
+                        View Job Link
+                    </a>
+                </div>
+                {% endif %}
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar me-1"></i>
+                        Added: {{ message.customer.created_at|date:"M d, Y" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Message Content -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-envelope me-2"></i>
+                    Message Content
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if message.campaign.subject %}
+                <div class="mb-3">
+                    <h6><i class="fas fa-heading me-2"></i>Subject</h6>
+                    <div class="p-3 bg-light rounded">
+                        {{ message.campaign.subject }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div>
+                    <h6><i class="fas fa-file-text me-2"></i>Content</h6>
+                    <div class="p-3 bg-light rounded" style="white-space: pre-wrap;">
+                        {{ message.campaign.content }}
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        This message was sent as part of the "{{ message.campaign.name }}" campaign.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <div class="btn-group" role="group">
+            {% if message.status == 'failed' %}
+            <button type="button" class="btn btn-warning" onclick="retryMessage('{{ message.id }}')">
+                <i class="fas fa-redo me-2"></i>Retry Message
+            </button>
+            {% endif %}
+            
+            <a href="{% url 'outreach:create_campaign' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create Similar Campaign
+            </a>
+            
+            <a href="{% url 'outreach:campaign_overview' %}" class="btn btn-secondary">
+                <i class="fas fa-list me-2"></i>View All Campaigns
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function retryMessage(messageId) {
+    if (confirm('Are you sure you want to retry sending this message?')) {
+        // Here you would implement the retry logic
+        alert('Message retry initiated. Please check the status in a few moments.');
+        
+        // Optionally refresh the page to show updated status
+        // location.reload();
+    }
+}
+</script>
+{% endblock %}

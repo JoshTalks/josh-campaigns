@@ -1,0 +1,348 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Campaign Messages - {{ campaign.name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="display-6 mb-2">
+                    <i class="fas fa-list text-primary me-3"></i>
+                    Campaign Messages
+                </h1>
+                <p class="lead text-muted mb-0">
+                    {{ campaign.name }} - {{ campaign.get_channel_display }} via {{ campaign.get_provider_display }}
+                </p>
+            </div>
+            <div>
+                <a href="{% url 'outreach:campaign_overview' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Campaigns
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Campaign Summary -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Campaign Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="h3 text-primary mb-1">{{ campaign.total_messages }}</div>
+                            <div class="text-muted">Total Messages</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="h3 text-success mb-1">{{ campaign.delivered_messages }}</div>
+                            <div class="text-muted">Delivered</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="h3 text-danger mb-1">{{ campaign.failed_messages }}</div>
+                            <div class="text-muted">Failed</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="h3 text-warning mb-1">{{ campaign.pending_messages }}</div>
+                            <div class="text-muted">Pending</div>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Status:</strong> 
+                        <span class="status-badge status-{{ campaign.status }}">
+                            {{ campaign.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Created:</strong> {{ campaign.created_at|date:"M d, Y H:i" }}
+                    </div>
+                </div>
+                {% if campaign.sent_at %}
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <strong>Sent:</strong> {{ campaign.sent_at|date:"M d, Y H:i" }}
+                    </div>
+                    {% if campaign.completed_at %}
+                    <div class="col-md-6">
+                        <strong>Completed:</strong> {{ campaign.completed_at|date:"M d, Y H:i" }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Messages Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-envelope me-2"></i>
+                    Individual Messages
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if page_obj %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Contact Info</th>
+                                    <th>Status</th>
+                                    <th>Sent At</th>
+                                    <th>Timeline</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for message in page_obj %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ message.customer.name }}</strong>
+                                        </div>
+                                        <small class="text-muted">{{ message.customer.address|default:"No address" }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="contact-info">
+                                            {% if message.customer.email %}
+                                                <div class="mb-1">
+                                                    <i class="fas fa-envelope me-1 text-primary"></i>
+                                                    {{ message.customer.email }}
+                                                </div>
+                                            {% endif %}
+                                            {% if message.customer.phone %}
+                                                <div>
+                                                    <i class="fas fa-phone me-1 text-success"></i>
+                                                    {{ message.customer.phone }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-{{ message.status }}">
+                                            {% if message.status == 'pending' %}
+                                                <i class="fas fa-clock me-1"></i>
+                                            {% elif message.status == 'sent' %}
+                                                <i class="fas fa-paper-plane me-1"></i>
+                                            {% elif message.status == 'delivered' %}
+                                                <i class="fas fa-check me-1"></i>
+                                            {% elif message.status == 'read' %}
+                                                <i class="fas fa-eye me-1"></i>
+                                            {% elif message.status == 'failed' %}
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                            {% endif %}
+                                            {{ message.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if message.sent_at %}
+                                            <div class="text-nowrap">
+                                                <strong>{{ message.sent_at|date:"M d, Y" }}</strong>
+                                            </div>
+                                            <small class="text-muted">{{ message.sent_at|date:"H:i" }}</small>
+                                        {% else %}
+                                            <span class="text-muted">Not sent</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="timeline-info">
+                                            {% if message.sent_at %}
+                                                <div class="text-success small">
+                                                    <i class="fas fa-paper-plane me-1"></i>Sent
+                                                </div>
+                                            {% endif %}
+                                            {% if message.delivered_at %}
+                                                <div class="text-info small">
+                                                    <i class="fas fa-check me-1"></i>Delivered
+                                                </div>
+                                            {% endif %}
+                                            {% if message.read_at %}
+                                                <div class="text-primary small">
+                                                    <i class="fas fa-eye me-1"></i>Read
+                                                </div>
+                                            {% endif %}
+                                            {% if message.error_message %}
+                                                <div class="text-danger small">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>Error
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'outreach:message_detail' message.id %}" 
+                                               class="btn btn-outline-primary btn-sm" 
+                                               title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if message.status == 'failed' %}
+                                            <button type="button" 
+                                                    class="btn btn-outline-warning btn-sm" 
+                                                    title="Retry"
+                                                    onclick="retryMessage('{{ message.id }}')">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                            {% endif %}
+                                            <button type="button" 
+                                                    class="btn btn-outline-info btn-sm" 
+                                                    title="Copy Contact"
+                                                    onclick="copyContact('{{ message.customer.email|default:message.customer.phone }}')">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Campaign messages pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No messages found</h4>
+                        <p class="text-muted">
+                            This campaign doesn't have any messages yet.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-bolt text-warning me-2"></i>
+                    Quick Actions
+                </h5>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'outreach:campaign_detail' campaign.id %}" class="btn btn-primary">
+                        <i class="fas fa-eye me-2"></i>View Campaign
+                    </a>
+                    <a href="{% url 'outreach:campaign_overview' %}" class="btn btn-secondary">
+                        <i class="fas fa-list me-2"></i>All Campaigns
+                    </a>
+                    <a href="{% url 'outreach:dashboard' %}" class="btn btn-info">
+                        <i class="fas fa-home me-2"></i>Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Retry failed message
+function retryMessage(messageId) {
+    if (confirm('Are you sure you want to retry sending this message?')) {
+        // Here you would implement the retry logic
+        alert('Message retry initiated. Please check the status in a few moments.');
+        
+        // Optionally refresh the page to show updated status
+        // location.reload();
+    }
+}
+
+// Copy contact information to clipboard
+function copyContact(contact) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(contact).then(function() {
+            // Show success message
+            const btn = event.target.closest('button');
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.remove('btn-outline-info');
+            btn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalIcon;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-info');
+            }, 2000);
+        });
+    } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = contact;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Contact information copied to clipboard!');
+    }
+}
+</script>
+{% endblock %}

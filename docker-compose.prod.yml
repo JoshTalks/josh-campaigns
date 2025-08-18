@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=joshCampaigns.settings
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@cloud-sql-proxy:5432/${DB_NAME}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn joshCampaigns.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    depends_on:
+      - cloud-sql-proxy
+    restart: unless-stopped
+
+  cloud-sql-proxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.1
+    command: >
+      --instances=${DB_HOST}=tcp:5432 --credentials-file=/secrets/service-account-key.json
+    volumes:
+      - ./service-account-key.json:/secrets/service-account-key.json
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - static_volume:/app/static
+      - media_volume:/app/media
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  celery:
+    build: .
+    command: celery -A joshCampaigns worker -l info
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=joshCampaigns.settings
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@cloud-sql-proxy:5432/${DB_NAME}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+    depends_on:
+      - cloud-sql-proxy
+      - web
+    restart: unless-stopped
+
+  celery-beat:
+    build: .
+    command: celery -A joshCampaigns beat -l info
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=joshCampaigns.settings
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@cloud-sql-proxy:5432/${DB_NAME}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+    depends_on:
+      - cloud-sql-proxy
+      - web
+    restart: unless-stopped
+
+volumes:
+  static_volume:
+  media_volume:

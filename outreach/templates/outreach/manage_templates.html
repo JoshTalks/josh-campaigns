@@ -1,0 +1,374 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Manage Templates - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 text-center mb-4">
+            <i class="fas fa-file-alt text-primary me-3"></i>
+            Message Templates
+        </h1>
+        <p class="lead text-center text-muted">
+            Create and manage reusable message templates for your outreach campaigns
+        </p>
+    </div>
+</div>
+
+<!-- Create New Template -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>
+                    Create New Template
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                <i class="fas fa-tag me-1"></i>Template Name *
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.name.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.channel.id_for_label }}" class="form-label">
+                                <i class="fas fa-broadcast-tower me-1"></i>Channel *
+                            </label>
+                            {{ form.channel }}
+                            {% if form.channel.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.channel.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3" id="template-subject-field">
+                            <label for="{{ form.subject.id_for_label }}" class="form-label">
+                                <i class="fas fa-heading me-1"></i>Subject Line
+                            </label>
+                            {{ form.subject }}
+                            {% if form.subject.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.subject.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.content.id_for_label }}" class="form-label">
+                            <i class="fas fa-envelope me-1"></i>Message Content *
+                        </label>
+                        {{ form.content }}
+                        {% if form.content.errors %}
+                            <div class="alert alert-danger mt-1">
+                                {{ form.content.errors }}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="form-text">
+                            <strong>Available variables:</strong><br>
+                            <code>{{name}}</code> - Customer name<br>
+                            <code>{{email}}</code> - Customer email<br>
+                            <code>{{phone}}</code> - Customer phone<br>
+                            <code>{{address}}</code> - Customer address<br>
+                            <code>{{job_link}}</code> - Job link
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="preview-template">
+                            <label class="form-check-label" for="preview-template">
+                                <i class="fas fa-eye me-1"></i>Show preview
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Template
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Template Preview -->
+                <div id="template-preview" class="mt-4" style="display: none;">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-eye me-2"></i>Template Preview
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="preview-content">
+                                <p class="text-muted">Template preview will appear here...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Existing Templates -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Existing Templates
+                </h5>
+                <span class="badge bg-light text-dark">
+                    {{ templates.count }} templates
+                </span>
+            </div>
+            <div class="card-body">
+                {% if templates %}
+                    <div class="row">
+                        {% for template in templates %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 template-card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">{{ template.name }}</h6>
+                                    <span class="channel-badge channel-{{ template.channel }}">
+                                        {% if template.channel == 'email' %}
+                                            <i class="fas fa-envelope me-1"></i>EMAIL
+                                        {% elif template.channel == 'sms' %}
+                                            <i class="fas fa-sms me-1"></i>SMS
+                                        {% elif template.channel == 'whatsapp' %}
+                                            <i class="fas fa-whatsapp me-1"></i>WHATSAPP
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    {% if template.subject %}
+                                    <div class="mb-2">
+                                        <strong>Subject:</strong>
+                                        <div class="text-muted small">{{ template.subject }}</div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="mb-3">
+                                        <strong>Content:</strong>
+                                        <div class="text-muted small template-content">
+                                            {{ template.content|truncatechars:100 }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="text-muted small mb-3">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        Created: {{ template.created_at|date:"M d, Y" }}
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="btn-group w-100" role="group">
+                                        <button type="button" 
+                                                class="btn btn-outline-primary btn-sm" 
+                                                onclick="previewTemplate('{{ template.id }}', '{{ template.name }}', '{{ template.subject|default:"" }}', '{{ template.content|escapejs }}')"
+                                                title="Preview">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <a href="{% url 'outreach:template_detail' template.id %}" 
+                                           class="btn btn-outline-warning btn-sm"
+                                           title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" 
+                                                class="btn btn-outline-success btn-sm"
+                                                onclick="useTemplate('{{ template.id }}')"
+                                                title="Use in Campaign">
+                                            <i class="fas fa-rocket"></i>
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-outline-danger btn-sm"
+                                                onclick="deleteTemplate('{{ template.id }}', '{{ template.name }}')"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-alt fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No templates created yet</h4>
+                        <p class="text-muted">
+                            Create your first message template to get started with your outreach campaigns.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Preview Modal -->
+<div class="modal fade" id="templatePreviewModal" tabindex="-1" aria-labelledby="templatePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="templatePreviewModalLabel">
+                    <i class="fas fa-eye me-2"></i>Template Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle me-2"></i>Template Details</h6>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Name:</strong></td>
+                                <td id="modal-template-name">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Channel:</strong></td>
+                                <td id="modal-template-channel">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Subject:</strong></td>
+                                <td id="modal-template-subject">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Created:</strong></td>
+                                <td id="modal-template-created">-</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-envelope me-2"></i>Message Preview</h6>
+                        <div class="card">
+                            <div class="card-body">
+                                <div id="modal-template-content">
+                                    <p class="text-muted">Template content will appear here...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="modal-use-template">
+                    <i class="fas fa-rocket me-2"></i>Use This Template
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentTemplateId = null;
+
+// Show/hide subject field based on channel selection
+document.getElementById('{{ form.channel.id_for_label }}').addEventListener('change', function() {
+    const subjectField = document.getElementById('template-subject-field');
+    if (this.value === 'email') {
+        subjectField.style.display = 'block';
+        document.getElementById('{{ form.subject.id_for_label }}').required = true;
+    } else {
+        subjectField.style.display = 'none';
+        document.getElementById('{{ form.subject.id_for_label }}').required = false;
+    }
+});
+
+// Template preview toggle
+document.getElementById('preview-template').addEventListener('change', function() {
+    const previewDiv = document.getElementById('template-preview');
+    if (this.checked) {
+        previewDiv.style.display = 'block';
+        updateTemplatePreview();
+    } else {
+        previewDiv.style.display = 'none';
+    }
+});
+
+// Update template preview
+function updateTemplatePreview() {
+    const name = document.getElementById('{{ form.name.id_for_label }}').value || '[Template Name]';
+    const channel = document.getElementById('{{ form.channel.id_for_label }}').value || 'email';
+    const subject = document.getElementById('{{ form.subject.id_for_label }}').value || 'No subject';
+    const content = document.getElementById('{{ form.content.id_for_label }}').value || 'No content';
+    
+    let preview = `<strong>Name:</strong> ${name}<br>`;
+    preview += `<strong>Channel:</strong> ${channel.toUpperCase()}<br>`;
+    if (channel === 'email') {
+        preview += `<strong>Subject:</strong> ${subject}<br>`;
+    }
+    preview += `<strong>Content:</strong><br>`;
+    preview += content.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>');
+    
+    document.getElementById('preview-content').innerHTML = preview;
+}
+
+// Event listeners for real-time preview
+document.getElementById('{{ form.name.id_for_label }}').addEventListener('input', updateTemplatePreview);
+document.getElementById('{{ form.channel.id_for_label }}').addEventListener('change', updateTemplatePreview);
+document.getElementById('{{ form.subject.id_for_label }}').addEventListener('input', updateTemplatePreview);
+document.getElementById('{{ form.content.id_for_label }}').addEventListener('input', updateTemplatePreview);
+
+// Preview template in modal
+function previewTemplate(templateId, name, subject, content) {
+    currentTemplateId = templateId;
+    
+    document.getElementById('modal-template-name').textContent = name;
+    document.getElementById('modal-template-channel').textContent = 'EMAIL'; // You can make this dynamic
+    document.getElementById('modal-template-subject').textContent = subject || 'N/A';
+    document.getElementById('modal-template-created').textContent = new Date().toLocaleDateString();
+    
+    const previewContent = content.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>');
+    document.getElementById('modal-template-content').innerHTML = previewContent.replace(/\n/g, '<br>');
+    
+    const modal = new bootstrap.Modal(document.getElementById('templatePreviewModal'));
+    modal.show();
+}
+
+// Use template in campaign
+function useTemplate(templateId) {
+    if (confirm('Would you like to use this template to create a new campaign?')) {
+        window.location.href = `{% url 'outreach:create_campaign' %}?template=${templateId}`;
+    }
+}
+
+// Delete template
+function deleteTemplate(templateId, templateName) {
+    if (confirm(`Are you sure you want to delete the template "${templateName}"? This action cannot be undone.`)) {
+        window.location.href = `{% url 'outreach:delete_template' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', templateId);
+    }
+}
+
+// Modal use template button
+document.getElementById('modal-use-template').addEventListener('click', function() {
+    if (currentTemplateId) {
+        useTemplate(currentTemplateId);
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Set initial channel selection
+    const channelSelect = document.getElementById('{{ form.channel.id_for_label }}');
+    if (channelSelect.value) {
+        channelSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}

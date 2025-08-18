@@ -1,0 +1,647 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Create Campaign - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 text-center mb-4">
+            <i class="fas fa-rocket text-primary me-3"></i>
+            Create Outreach Campaign
+        </h1>
+        <p class="lead text-center text-muted">
+            Follow the steps below to create and launch your outreach campaign
+        </p>
+    </div>
+</div>
+
+<!-- Progress Steps -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="progress-step">
+                <div class="step-circle active">
+                    <i class="fas fa-1"></i>
+                </div>
+                <h6>Channel & Provider</h6>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">
+                    <i class="fas fa-2"></i>
+                </div>
+                <h6>Message Content</h6>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">
+                    <i class="fas fa-3"></i>
+                </div>
+                <h6>Review & Send</h6>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 1: Channel & Provider Selection -->
+<div class="row" id="step1">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-broadcast-tower me-2"></i>
+                    Step 1: Channel & Provider Selection
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="campaign-form">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.channel.id_for_label }}" class="form-label">
+                                <i class="fas fa-broadcast-tower me-1"></i>Communication Channel *
+                            </label>
+                            {{ form.channel }}
+                            {% if form.channel.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.channel.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.provider.id_for_label }}" class="form-label">
+                                <i class="fas fa-cogs me-1"></i>Service Provider *
+                            </label>
+                            {{ form.provider }}
+                            {% if form.provider.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.provider.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3" id="subject-field" style="display: none;">
+                            <label for="{{ form.subject.id_for_label }}" class="form-label">
+                                <i class="fas fa-heading me-1"></i>Email Subject *
+                            </label>
+                            {{ form.subject }}
+                            {% if form.subject.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.subject.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3" id="vendor-template-field" style="display: none;">
+                            <label for="{{ form.vendor_template.id_for_label }}" class="form-label">
+                                <i class="fas fa-file-alt me-1"></i>{{ form.vendor_template.label }}
+                            </label>
+                            {{ form.vendor_template }}
+                            {% if form.vendor_template.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.vendor_template.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="content-field">
+                        <label for="{{ form.content.id_for_label }}" class="form-label">
+                            <i class="fas fa-envelope me-1"></i>Message Content *
+                        </label>
+                        {{ form.content }}
+                        {% if form.content.errors %}
+                            <div class="alert alert-danger mt-1">
+                                {{ form.content.errors }}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="form-text">
+                            <strong>Available variables:</strong><br>
+                            <code>{{name}}</code> - Customer name<br>
+                            <code>{{email}}</code> - Customer email<br>
+                            <code>{{phone}}</code> - Customer phone<br>
+                            <code>{{address}}</code> - Customer address<br>
+                            <code>{{job_link}}</code> - Job link
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Count Display -->
+                    {% if customers_count > 0 %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-users me-2"></i>
+                        <strong>{{ customers_count }} customers</strong> are ready for this campaign.
+                        <a href="{% url 'outreach:add_customers' %}" class="btn btn-outline-success btn-sm ms-2">
+                            <i class="fas fa-plus me-1"></i>Add More
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>No customers added yet.</strong> 
+                        <a href="{% url 'outreach:add_customers' %}" class="btn btn-warning btn-sm ms-2">
+                            <i class="fas fa-users me-1"></i>Add Customers First
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'outreach:add_customers' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Add Customers
+                        </a>
+                        
+                        {% if customers_count > 0 %}
+                        <button type="button" class="btn btn-primary" id="step1-next" disabled>
+                            <i class="fas fa-arrow-right me-2"></i>Next: Message Content
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn btn-primary" disabled>
+                            <i class="fas fa-arrow-right me-2"></i>Next: Message Content
+                        </button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 2: Message Content -->
+<div class="row" id="step2" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    Step 2: Message Content
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3" id="step2-subject-field" style="display: none;">
+                            <label for="message-subject" class="form-label">
+                                <i class="fas fa-heading me-1"></i>Subject Line
+                            </label>
+                            <input type="text" class="form-control" id="message-subject" placeholder="Enter your subject line">
+                            <div class="form-text">Subject is required for email campaigns</div>
+                        </div>
+                        
+                        <div class="mb-3" id="step2-content-field" style="display: none;">
+                            <label for="message-content" class="form-label">
+                                <i class="fas fa-envelope me-1"></i>Message Content
+                            </label>
+                            <textarea class="form-control" id="message-content" rows="8" placeholder="Write your message here...
+
+Available variables:
+{{name}} - Customer name
+{{email}} - Customer email
+{{phone}} - Customer phone
+{{address}} - Customer address
+{{job_link}} - Job link"></textarea>
+                        </div>
+                        
+                        <div class="mb-3" id="template-info" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Vendor Template Selected:</strong> Your message content is pre-filled from the selected template.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-eye me-2"></i>Message Preview
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="message-preview">
+                                    <p class="text-muted">Your message preview will appear here...</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card mt-3" id="vendor-template-card" style="display:none;">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-file-alt me-2"></i>Use Template
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <select class="form-control" id="template-selector"></select>
+                                <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="loadTemplate()">
+                                    <i class="fas fa-download me-1"></i>Load Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="showStep(1)">
+                        <i class="fas fa-arrow-left me-2"></i>Previous
+                    </button>
+                    
+                    <button type="button" class="btn btn-primary" onclick="goToStep3()">
+                        <i class="fas fa-arrow-right me-2"></i>Next: Review & Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 3: Review & Send -->
+<div class="row" id="step3" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Step 3: Review & Send
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle me-2"></i>Campaign Summary</h6>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Campaign Name:</strong></td>
+                                <td id="review-name">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Channel:</strong></td>
+                                <td id="review-channel">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Provider:</strong></td>
+                                <td id="review-provider">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Subject:</strong></td>
+                                <td id="review-subject">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Customers:</strong></td>
+                                <td id="review-customers">-</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-envelope me-2"></i>Message Preview</h6>
+                        <div class="card">
+                            <div class="card-body">
+                                <div id="review-message">
+                                    <p class="text-muted">Message preview will appear here...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Ready to send?</strong> Please review all details above before launching your campaign.
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="showStep(2)">
+                        <i class="fas fa-arrow-left me-2"></i>Previous
+                    </button>
+                    
+                    <button type="button" class="btn btn-success btn-lg" onclick="launchCampaign()">
+                        <i class="fas fa-rocket me-2"></i>Launch Campaign
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStep = 1;
+let selectedChannel = '';
+let selectedProvider = '';
+let campaignData = {};
+
+// Channel selection
+document.getElementById('{{ form.channel.id_for_label }}').addEventListener('change', function() {
+    selectedChannel = this.value;
+    
+    // Reset provider while loading
+    const providerSelect = document.getElementById('{{ form.provider.id_for_label }}');
+    providerSelect.innerHTML = '<option value="">Loading providers...</option>';
+    selectedProvider = '';
+    checkStep1Complete();
+
+    // Fetch providers for selected channel
+    if (selectedChannel) {
+        const url = new URL('{% url "outreach:get_providers" %}', window.location.origin);
+        url.searchParams.set('channel', selectedChannel);
+        fetch(url.toString(), { credentials: 'same-origin' })
+            .then(res => res.json())
+            .then(data => {
+                providerSelect.innerHTML = '<option value="">Select provider</option>';
+                (data.providers || []).forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.value;
+                    opt.textContent = p.label;
+                    providerSelect.appendChild(opt);
+                });
+            })
+            .catch(() => {
+                providerSelect.innerHTML = '<option value="">No providers available</option>';
+            });
+    }
+    
+    // Toggle email subject field, vendor template field, and content field
+    document.getElementById('subject-field').style.display = selectedChannel === 'email' ? 'block' : 'none';
+    document.getElementById('vendor-template-field').style.display = selectedChannel === 'email' ? 'none' : 'block';
+    document.getElementById('content-field').style.display = selectedChannel === 'email' ? 'block' : 'none';
+    
+    // Clear content field for non-email channels
+    if (selectedChannel !== 'email') {
+        document.getElementById('{{ form.content.id_for_label }}').value = '';
+    }
+});
+
+// Provider selection
+document.getElementById('{{ form.provider.id_for_label }}').addEventListener('change', function() {
+    selectedProvider = this.value;
+    checkStep1Complete();
+    
+    // Load vendor templates if channel is selected and not email
+    if (selectedChannel && selectedChannel !== 'email' && selectedProvider) {
+        loadVendorTemplatesForStep1();
+    }
+});
+
+// Check if step 1 is complete (both channel and provider selected)
+function checkStep1Complete() {
+    const nextButton = document.getElementById('step1-next');
+    if (selectedChannel && selectedProvider) {
+        nextButton.disabled = false;
+        nextButton.innerHTML = '<i class="fas fa-arrow-right me-2"></i>Next: Message Content';
+    } else {
+        nextButton.disabled = true;
+        nextButton.innerHTML = '<i class="fas fa-arrow-right me-2"></i>Next: Message Content';
+    }
+}
+
+// Load vendor templates for step 1 (when channel and provider are selected)
+function loadVendorTemplatesForStep1() {
+    if (!selectedChannel || !selectedProvider || selectedChannel === 'email') return;
+    
+    const vendorTemplateField = document.getElementById('{{ form.vendor_template.id_for_label }}');
+    vendorTemplateField.innerHTML = '<option value="">Loading templates...</option>';
+    
+    const url = new URL('{% url "outreach:get_vendor_templates" %}', window.location.origin);
+    url.searchParams.set('channel', selectedChannel);
+    url.searchParams.set('provider', selectedProvider);
+    
+    fetch(url.toString(), { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            vendorTemplateField.innerHTML = '<option value="">Select a vendor template (optional)</option>';
+            (data.templates || []).forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                opt.dataset.content = t.content;
+                vendorTemplateField.appendChild(opt);
+            });
+        })
+        .catch(() => {
+            vendorTemplateField.innerHTML = '<option value="">No templates available</option>';
+        });
+}
+
+// Step 1 Next button click
+document.getElementById('step1-next').addEventListener('click', function() {
+    // Collect form data
+    campaignData = {
+        channel: document.getElementById('{{ form.channel.id_for_label }}').value,
+        provider: document.getElementById('{{ form.provider.id_for_label }}').value,
+        subject: document.getElementById('{{ form.subject.id_for_label }}').value,
+        content: document.getElementById('{{ form.content.id_for_label }}').value,
+        vendor_template: document.getElementById('{{ form.vendor_template.id_for_label }}').value
+    };
+    
+    // Validate required fields
+    if (!campaignData.channel || !campaignData.provider) {
+        alert('Please select both channel and provider.');
+        return;
+    }
+    
+    if (campaignData.channel === 'email') {
+        // For email: subject and content are required
+        if (!campaignData.subject) {
+            alert('Subject is required for email campaigns.');
+            return;
+        }
+        if (!campaignData.content) {
+            alert('Message content is required for email campaigns.');
+            return;
+        }
+    } else {
+        // For SMS/WhatsApp: vendor template is required instead of content
+        if (!campaignData.vendor_template) {
+            alert('Please select a vendor template for SMS/WhatsApp campaigns.');
+            return;
+        }
+    }
+    
+    // If vendor template is selected, load its content
+    if (campaignData.vendor_template && campaignData.channel !== 'email') {
+        const vendorTemplateField = document.getElementById('{{ form.vendor_template.id_for_label }}');
+        const selectedOption = vendorTemplateField.options[vendorTemplateField.selectedIndex];
+        if (selectedOption && selectedOption.dataset.content) {
+            campaignData.content = selectedOption.dataset.content;
+            document.getElementById('{{ form.content.id_for_label }}').value = campaignData.content;
+        }
+    }
+    
+    // Populate step 2 fields
+    document.getElementById('message-subject').value = campaignData.subject || '';
+    document.getElementById('message-content').value = campaignData.content || '';
+    
+    // Show/hide fields based on channel
+    const subjectField = document.getElementById('step2-subject-field');
+    const contentField = document.getElementById('step2-content-field');
+    const templateInfo = document.getElementById('template-info');
+    
+    if (campaignData.channel === 'email') {
+        subjectField.style.display = 'block';
+        contentField.style.display = 'block';
+        templateInfo.style.display = 'none';
+    } else {
+        subjectField.style.display = 'none';
+        contentField.style.display = 'none';
+        templateInfo.style.display = 'block';
+    }
+    
+    showStep(2);
+});
+
+// Go to step 3 from step 2
+function goToStep3() {
+    // Update campaign data with any changes from step 2
+    if (campaignData.channel === 'email') {
+        campaignData.subject = document.getElementById('message-subject').value;
+        campaignData.content = document.getElementById('message-content').value;
+    }
+    // For SMS/WhatsApp, content comes from vendor template and is not editable
+    
+    showStep(3);
+}
+
+// Step navigation
+function showStep(step) {
+    document.querySelectorAll('[id^="step"]').forEach(el => el.style.display = 'none');
+    document.getElementById('step' + step).style.display = 'block';
+    
+    // Update progress indicators
+    document.querySelectorAll('.step-circle').forEach((circle, index) => {
+        circle.classList.remove('active', 'completed');
+        if (index + 1 < step) {
+            circle.classList.add('completed');
+        } else if (index + 1 === step) {
+            circle.classList.add('active');
+        }
+    });
+    
+    currentStep = step;
+    
+    // Load data for specific steps
+    if (step === 2) {
+        loadVendorTemplates();
+        updateMessagePreview();
+    } else if (step === 3) {
+        updateReview();
+    }
+}
+
+// Message preview
+function updateMessagePreview() {
+    const content = document.getElementById('message-content').value;
+    const preview = content.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>');
+    document.getElementById('message-preview').innerHTML = preview || '<p class="text-muted">Your message preview will appear here...</p>';
+}
+
+// Load vendor templates dynamically for non-email channels
+function loadVendorTemplates() {
+    const card = document.getElementById('vendor-template-card');
+    const templateSelect = document.getElementById('template-selector');
+    templateSelect.innerHTML = '';
+
+    if (selectedChannel === 'email') {
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+    templateSelect.innerHTML = '<option value="">Select an approved vendor template...</option>';
+
+    const url = new URL('{% url "outreach:get_vendor_templates" %}', window.location.origin);
+    url.searchParams.set('channel', selectedChannel);
+    url.searchParams.set('provider', document.getElementById('{{ form.provider.id_for_label }}').value);
+
+    fetch(url.toString(), { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            (data.templates || []).forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                opt.dataset.content = t.content;
+                templateSelect.appendChild(opt);
+            });
+        })
+        .catch(() => {});
+}
+
+// Load template content
+function loadTemplate() {
+    const templateId = document.getElementById('template-selector').value;
+    if (!templateId) return;
+    const option = document.querySelector(`#template-selector option[value="${templateId}"]`);
+    const content = option ? option.dataset.content : '';
+    if (content) {
+        document.getElementById('message-content').value = content;
+        updateMessagePreview();
+    }
+}
+
+// Update review section
+function updateReview() {
+    // Generate campaign name
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+    const channelDisplay = campaignData.channel ? campaignData.channel.toUpperCase() : '';
+    const campaignName = `${channelDisplay}_Campaign_${timestamp}`;
+    
+    document.getElementById('review-name').textContent = campaignName;
+    document.getElementById('review-channel').textContent = campaignData.channel ? campaignData.channel.toUpperCase() : '-';
+    document.getElementById('review-provider').textContent = campaignData.provider ? campaignData.provider.replace('-', ' ').toUpperCase() : '-';
+    document.getElementById('review-subject').textContent = campaignData.subject || 'N/A';
+    document.getElementById('review-customers').textContent = '{{ customers_count }} customers';
+    
+    const content = document.getElementById('message-content').value || campaignData.content;
+    const preview = content.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>');
+    document.getElementById('review-message').innerHTML = preview || '<p class="text-muted">No message content</p>';
+}
+
+// Launch campaign
+function launchCampaign() {
+    if (confirm('Are you sure you want to launch this campaign? This action cannot be undone.')) {
+        // Submit the form data
+        const formData = new FormData();
+        formData.append('channel', campaignData.channel);
+        formData.append('provider', campaignData.provider);
+        formData.append('subject', campaignData.subject || '');
+        formData.append('content', campaignData.content);
+        formData.append('vendor_template', campaignData.vendor_template || '');
+        
+        fetch('{% url "outreach:create_campaign" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Campaign launched successfully!');
+                window.location.href = '{% url "outreach:campaign_overview" %}';
+            } else {
+                alert('Error launching campaign: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error launching campaign. Please try again.');
+        });
+    }
+}
+
+// Event listeners
+document.getElementById('message-content').addEventListener('input', updateMessagePreview);
+document.getElementById('message-subject').addEventListener('input', updateMessagePreview);
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Set initial form values from Django form
+    if (document.getElementById('{{ form.name.id_for_label }}').value) {
+        campaignData.name = document.getElementById('{{ form.name.id_for_label }}').value;
+    }
+});
+</script>
+{% endblock %}

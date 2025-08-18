@@ -1,0 +1,192 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Edit Template - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 class="display-5">
+                <i class="fas fa-edit text-primary me-3"></i>
+                Edit Template: {{ template.name }}
+            </h1>
+            <a href="{% url 'outreach:manage_templates' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Templates
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    Edit Template
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                <i class="fas fa-tag me-1"></i>Template Name *
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.name.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.channel.id_for_label }}" class="form-label">
+                                <i class="fas fa-broadcast-tower me-1"></i>Channel *
+                            </label>
+                            {{ form.channel }}
+                            {% if form.channel.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.channel.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3" id="template-subject-field">
+                            <label for="{{ form.subject.id_for_label }}" class="form-label">
+                                <i class="fas fa-heading me-1"></i>Subject Line
+                            </label>
+                            {{ form.subject }}
+                            {% if form.subject.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ form.subject.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.content.id_for_label }}" class="form-label">
+                            <i class="fas fa-envelope me-1"></i>Message Content *
+                        </label>
+                        {{ form.content }}
+                        {% if form.content.errors %}
+                            <div class="alert alert-danger mt-1">
+                                {{ form.content.errors }}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="form-text">
+                            <strong>Available variables:</strong><br>
+                            <code>{{name}}</code> - Customer name<br>
+                            <code>{{email}}</code> - Customer email<br>
+                            <code>{{phone}}</code> - Customer phone<br>
+                            <code>{{address}}</code> - Customer address<br>
+                            <code>{{job_link}}</code> - Job link
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="preview-template" checked>
+                            <label class="form-check-label" for="preview-template">
+                                <i class="fas fa-eye me-1"></i>Show preview
+                            </label>
+                        </div>
+                        
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Update Template
+                            </button>
+                            <a href="{% url 'outreach:manage_templates' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Template Preview -->
+                <div id="template-preview" class="mt-4">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-eye me-2"></i>Template Preview
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="preview-content">
+                                <p class="text-muted">Template preview will appear here...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Show/hide subject field based on channel selection
+document.getElementById('{{ form.channel.id_for_label }}').addEventListener('change', function() {
+    const subjectField = document.getElementById('template-subject-field');
+    if (this.value === 'email') {
+        subjectField.style.display = 'block';
+        document.getElementById('{{ form.subject.id_for_label }}').required = true;
+    } else {
+        subjectField.style.display = 'none';
+        document.getElementById('{{ form.subject.id_for_label }}').required = false;
+    }
+});
+
+// Template preview toggle
+document.getElementById('preview-template').addEventListener('change', function() {
+    const previewDiv = document.getElementById('template-preview');
+    if (this.checked) {
+        previewDiv.style.display = 'block';
+        updateTemplatePreview();
+    } else {
+        previewDiv.style.display = 'none';
+    }
+});
+
+// Update template preview
+function updateTemplatePreview() {
+    const name = document.getElementById('{{ form.name.id_for_label }}').value || '[Template Name]';
+    const channel = document.getElementById('{{ form.channel.id_for_label }}').value || 'email';
+    const subject = document.getElementById('{{ form.subject.id_for_label }}').value || 'No subject';
+    const content = document.getElementById('{{ form.content.id_for_label }}').value || 'No content';
+    
+    let preview = `<strong>Name:</strong> ${name}<br>`;
+    preview += `<strong>Channel:</strong> ${channel.toUpperCase()}<br>`;
+    if (channel === 'email') {
+        preview += `<strong>Subject:</strong> ${subject}<br>`;
+    }
+    preview += `<strong>Content:</strong><br>`;
+    preview += content.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>');
+    
+    document.getElementById('preview-content').innerHTML = preview;
+}
+
+// Event listeners for real-time preview
+document.getElementById('{{ form.name.id_for_label }}').addEventListener('input', updateTemplatePreview);
+document.getElementById('{{ form.channel.id_for_label }}').addEventListener('change', updateTemplatePreview);
+document.getElementById('{{ form.subject.id_for_label }}').addEventListener('input', updateTemplatePreview);
+document.getElementById('{{ form.content.id_for_label }}').addEventListener('input', updateTemplatePreview);
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Set initial channel selection
+    const channelSelect = document.getElementById('{{ form.channel.id_for_label }}');
+    if (channelSelect.value) {
+        channelSelect.dispatchEvent(new Event('change'));
+    }
+    
+    // Show initial preview
+    updateTemplatePreview();
+});
+</script>
+{% endblock %}

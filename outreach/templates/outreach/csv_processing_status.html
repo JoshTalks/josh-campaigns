@@ -1,0 +1,142 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}CSV Processing Status - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 text-center mb-4">
+            <i class="fas fa-cogs text-primary me-3"></i>
+            CSV Processing Status
+        </h1>
+        <p class="lead text-center text-muted">
+            Processing your large CSV file in the background
+        </p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-csv me-2"></i>
+                    Processing Job: {{ job_id|slice:":8" }}...
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                {% if job_status.status == 'processing' %}
+                    <div class="mb-4">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                    </div>
+                    
+                    <h4 class="text-primary mb-3">Processing CSV File...</h4>
+                    <p class="text-muted">
+                        Your CSV file is being processed in the background. 
+                        This may take a few minutes for large files.
+                    </p>
+                    
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" 
+                             style="width: {{ job_status.progress|default:0 }}%"
+                             aria-valuenow="{{ job_status.progress|default:0 }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {{ job_status.progress|default:0 }}%
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Job ID:</strong> {{ job_id }}
+                        <br>
+                        <small>Keep this page open to monitor progress</small>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button class="btn btn-primary" onclick="checkStatus()">
+                            <i class="fas fa-sync-alt me-2"></i>Check Status
+                        </button>
+                        <a href="{% url 'outreach:add_customers' %}" class="btn btn-secondary ms-2">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Add Customers
+                        </a>
+                    </div>
+                    
+                {% elif job_status.status == 'completed' %}
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                    </div>
+                    
+                    <h4 class="text-success mb-3">Processing Completed!</h4>
+                    <p class="text-muted">
+                        Your CSV file has been processed successfully.
+                    </p>
+                    
+                    <div class="alert alert-success">
+                        <i class="fas fa-check me-2"></i>
+                        <strong>Success!</strong> Redirecting to campaign creation...
+                    </div>
+                    
+                {% elif job_status.status == 'failed' %}
+                    <div class="mb-4">
+                        <i class="fas fa-exclamation-triangle text-danger" style="font-size: 4rem;"></i>
+                    </div>
+                    
+                    <h4 class="text-danger mb-3">Processing Failed</h4>
+                    <p class="text-muted">
+                        There was an error processing your CSV file.
+                    </p>
+                    
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Error:</strong> {{ job_status.error|default:"Unknown error" }}
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'outreach:add_customers' %}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Add Customers
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh status every 5 seconds
+let statusCheckInterval;
+
+function checkStatus() {
+    // Reload the page to check status
+    window.location.reload();
+}
+
+function startAutoRefresh() {
+    statusCheckInterval = setInterval(checkStatus, 5000);
+}
+
+function stopAutoRefresh() {
+    if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+    }
+}
+
+// Start auto-refresh when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    {% if job_status.status == 'processing' %}
+        startAutoRefresh();
+    {% else %}
+        stopAutoRefresh();
+    {% endif %}
+});
+
+// Stop auto-refresh when leaving page
+window.addEventListener('beforeunload', stopAutoRefresh);
+</script>
+{% endblock %}

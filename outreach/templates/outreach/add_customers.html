@@ -1,0 +1,267 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Add Customers - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 text-center mb-4">
+            <i class="fas fa-users text-primary me-3"></i>
+            Add Customers
+        </h1>
+        <p class="lead text-center text-muted">
+            Choose how you want to add customers to your outreach campaigns
+        </p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- CSV Upload Section -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-csv me-2"></i>
+                    Bulk Upload via CSV
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Upload a CSV file with customer information. The file should contain these columns:
+                </p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success me-2"></i><strong>name</strong> - Customer's full name</li>
+                    <li><i class="fas fa-check text-success me-2"></i><strong>email</strong> - Email address (optional)</li>
+                    <li><i class="fas fa-check text-success me-2"></i><strong>phone</strong> - Phone number (optional)</li>
+                    <li><i class="fas fa-check text-success me-2"></i><strong>address</strong> - Physical address (optional)</li>
+                    <li><i class="fas fa-check text-success me-2"></i><strong>job_link</strong> - Job posting URL (optional)</li>
+                </ul>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> At least one contact method (email or phone) is required per customer.
+                </div>
+                
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        {{ form.csv_file.label_tag }}
+                        {{ form.csv_file }}
+                        {% if form.csv_file.help_text %}
+                            <div class="form-text">{{ form.csv_file.help_text }}</div>
+                        {% endif %}
+                        {% if form.csv_file.errors %}
+                            <div class="alert alert-danger mt-2">
+                                {{ form.csv_file.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <button type="submit" name="csv_upload" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>Upload CSV
+                    </button>
+                </form>
+                
+                <!-- Sample CSV Download -->
+                <div class="mt-3">
+                    <a href="#" class="btn btn-outline-secondary btn-sm" onclick="downloadSampleCSV()">
+                        <i class="fas fa-download me-2"></i>Download Sample CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Manual Entry Section -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    Manual Entry
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Add customers one by one through the form below. This is ideal for adding a few customers at a time.
+                </p>
+                
+                <form method="post" id="manual-form">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ manual_form.name.id_for_label }}" class="form-label">
+                                <i class="fas fa-user me-1"></i>Full Name *
+                            </label>
+                            {{ manual_form.name }}
+                            {% if manual_form.name.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ manual_form.name.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ manual_form.email.id_for_label }}" class="form-label">
+                                <i class="fas fa-envelope me-1"></i>Email Address
+                            </label>
+                            {{ manual_form.email }}
+                            {% if manual_form.email.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ manual_form.email.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ manual_form.phone.id_for_label }}" class="form-label">
+                                <i class="fas fa-phone me-1"></i>Phone Number
+                            </label>
+                            {{ manual_form.phone }}
+                            {% if manual_form.phone.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ manual_form.phone.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ manual_form.job_link.id_for_label }}" class="form-label">
+                                <i class="fas fa-link me-1"></i>Job Link
+                            </label>
+                            {{ manual_form.job_link }}
+                            {% if manual_form.job_link.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {{ manual_form.job_link.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ manual_form.address.id_for_label }}" class="form-label">
+                            <i class="fas fa-map-marker-alt me-1"></i>Address
+                        </label>
+                        {{ manual_form.address }}
+                        {% if manual_form.address.errors %}
+                            <div class="alert alert-danger mt-1">
+                                {{ manual_form.address.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Important:</strong> You must provide either an email address or phone number.
+                    </div>
+                    
+                    <button type="submit" name="manual_entry" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Add Customer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Preview Section -->
+<div class="row" id="customer-preview" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-eye me-2"></i>
+                    Customer Preview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="preview-content">
+                    <!-- Preview content will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Next Steps -->
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-arrow-right text-primary me-2"></i>
+                    Ready to create your campaign?
+                </h5>
+                <p class="card-text">
+                    Once you've added your customers, you can proceed to create and send your outreach campaign.
+                </p>
+                <a href="{% url 'outreach:create_campaign' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-rocket me-2"></i>Create Campaign
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function downloadSampleCSV() {
+    const csvContent = "name,email,phone,address,job_link\nJohn Doe,john@example.com,+1234567890,123 Main St City,https://example.com/job1\nJane Smith,jane@example.com,+1987654321,456 Oak Ave Town,https://example.com/job2\nMike Johnson,mike@example.com,+1122334455,789 Pine St Village,https://example.com/job3";
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample_customers.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+// Form validation
+document.getElementById('manual-form').addEventListener('submit', function(e) {
+    const email = document.getElementById('{{ manual_form.email.id_for_label }}').value;
+    const phone = document.getElementById('{{ manual_form.phone.id_for_label }}').value;
+    
+    if (!email && !phone) {
+        e.preventDefault();
+        alert('Please provide either an email address or phone number.');
+        return false;
+    }
+    
+    if (!document.getElementById('{{ manual_form.name.id_for_label }}').value.trim()) {
+        e.preventDefault();
+        alert('Please provide a customer name.');
+        return false;
+    }
+});
+
+// Real-time form validation
+document.getElementById('{{ manual_form.email.id_for_label }}').addEventListener('input', validateForm);
+document.getElementById('{{ manual_form.phone.id_for_label }}').addEventListener('input', validateForm);
+document.getElementById('{{ manual_form.name.id_for_label }}').addEventListener('input', validateForm);
+
+function validateForm() {
+    const email = document.getElementById('{{ manual_form.email.id_for_label }}').value;
+    const phone = document.getElementById('{{ manual_form.phone.id_for_label }}').value;
+    const name = document.getElementById('{{ manual_form.name.id_for_label }}').value;
+    
+    const submitBtn = document.querySelector('button[name="manual_entry"]');
+    
+    if (name.trim() && (email || phone)) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-secondary');
+        submitBtn.classList.add('btn-success');
+    } else {
+        submitBtn.disabled = true;
+        submitBtn.classList.remove('btn-success');
+        submitBtn.classList.add('btn-secondary');
+    }
+}
+
+// Initialize form validation
+validateForm();
+</script>
+{% endblock %}

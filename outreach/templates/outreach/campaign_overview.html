@@ -1,0 +1,301 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Campaign Overview - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 text-center mb-4">
+            <i class="fas fa-chart-line text-primary me-3"></i>
+            Campaign Overview
+        </h1>
+        <p class="lead text-center text-muted">
+            Monitor your campaigns and message delivery status
+        </p>
+    </div>
+</div>
+
+<!-- Campaign Statistics -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Campaign Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="stats-card">
+                            <div class="stats-number">{{ campaigns.count }}</div>
+                            <div class="stats-label">Total Campaigns</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="stats-card">
+                            <div class="stats-number">
+                                {% with total_messages=0 %}
+                                    {% for campaign in campaigns %}
+                                        {% with campaign.total_messages as campaign_messages %}
+                                            {% if campaign_messages %}
+                                                {{ total_messages|add:campaign_messages }}
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endfor %}
+                                    {{ total_messages }}
+                                {% endwith %}
+                            </div>
+                            <div class="stats-label">Total Messages</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="stats-card">
+                            <div class="stats-number">
+                                {% with delivered_count=0 %}
+                                    {% for campaign in campaigns %}
+                                        {% with campaign.delivered_messages as delivered %}
+                                            {% if delivered %}
+                                                {{ delivered_count|add:delivered }}
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endfor %}
+                                    {{ delivered_count }}
+                                {% endwith %}
+                            </div>
+                            <div class="stats-label">Delivered</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="stats-card">
+                            <div class="stats-number">
+                                {% with failed_count=0 %}
+                                    {% for campaign in campaigns %}
+                                        {% with campaign.failed_messages as failed %}
+                                            {% if failed %}
+                                                {{ failed_count|add:failed }}
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endfor %}
+                                    {{ failed_count }}
+                                {% endwith %}
+                            </div>
+                            <div class="stats-label">Failed</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Campaigns List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    All Campaigns
+                </h5>
+                <a href="{% url 'outreach:create_campaign' %}" class="btn btn-light btn-sm">
+                    <i class="fas fa-plus me-1"></i>New Campaign
+                </a>
+            </div>
+            <div class="card-body">
+                {% if campaigns %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Campaign Name</th>
+                                    <th>Channel</th>
+                                    <th>Provider</th>
+                                    <th>Status</th>
+                                    <th>Message Counts</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for campaign in campaigns %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ campaign.name }}</strong>
+                                        </div>
+                                        {% if campaign.subject %}
+                                            <small class="text-muted">{{ campaign.subject }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="channel-badge channel-{{ campaign.channel }}">
+                                            {% if campaign.channel == 'email' %}
+                                                <i class="fas fa-envelope me-1"></i>EMAIL
+                                            {% elif campaign.channel == 'sms' %}
+                                                <i class="fas fa-sms me-1"></i>SMS
+                                            {% elif campaign.channel == 'whatsapp' %}
+                                                <i class="fas fa-whatsapp me-1"></i>WHATSAPP
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">
+                                            {{ campaign.get_provider_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-{{ campaign.status }}">
+                                            {% if campaign.status == 'draft' %}
+                                                <i class="fas fa-edit me-1"></i>
+                                            {% elif campaign.status == 'sending' %}
+                                                <i class="fas fa-paper-plane me-1"></i>
+                                            {% elif campaign.status == 'completed' %}
+                                                <i class="fas fa-check me-1"></i>
+                                            {% elif campaign.status == 'failed' %}
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                            {% endif %}
+                                            {{ campaign.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="message-counts">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="text-muted small">Total:</span>
+                                                <span class="badge bg-primary">{{ campaign.total_messages }}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="text-muted small">Delivered:</span>
+                                                <span class="badge bg-success">{{ campaign.delivered_messages }}</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="text-muted small">Failed:</span>
+                                                <span class="badge bg-danger">{{ campaign.failed_messages }}</span>
+                                            </div>
+                                            {% if campaign.pending_messages > 0 %}
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="text-muted small">Pending:</span>
+                                                <span class="badge bg-warning">{{ campaign.pending_messages }}</span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-nowrap">
+                                            <strong>{{ campaign.created_at|date:"M d, Y" }}</strong>
+                                        </div>
+                                        <small class="text-muted">{{ campaign.created_at|date:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            {% if campaign.status == 'draft' %}
+                                                <a href="{% url 'outreach:campaign_detail' campaign.id %}" 
+                                                   class="btn btn-outline-primary btn-sm" 
+                                                   title="Edit Campaign">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            {% else %}
+                                                <a href="{% url 'outreach:campaign_detail' campaign.id %}" 
+                                                   class="btn btn-outline-info btn-sm" 
+                                                   title="View Campaign">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            {% endif %}
+                                            
+                                            {% if campaign.total_messages > 0 %}
+                                                <a href="{% url 'outreach:campaign_messages' campaign.id %}" 
+                                                   class="btn btn-outline-success btn-sm" 
+                                                   title="View Messages">
+                                                    <i class="fas fa-list"></i>
+                                                </a>
+                                            {% endif %}
+                                            
+                                            {% if campaign.status == 'completed' and campaign.failed_messages > 0 %}
+                                                <button type="button" 
+                                                        class="btn btn-outline-warning btn-sm" 
+                                                        title="Retry Failed Messages"
+                                                        onclick="retryFailedMessages('{{ campaign.id }}')">
+                                                    <i class="fas fa-redo"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No campaigns found</h4>
+                        <p class="text-muted">
+                            Get started by creating your first outreach campaign!
+                        </p>
+                        <a href="{% url 'outreach:create_campaign' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>Create Campaign
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-bolt text-warning me-2"></i>
+                    Quick Actions
+                </h5>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'outreach:add_customers' %}" class="btn btn-primary">
+                        <i class="fas fa-users me-2"></i>Add Customers
+                    </a>
+                    <a href="{% url 'outreach:create_campaign' %}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Create Campaign
+                    </a>
+                    <a href="{% url 'outreach:manage_templates' %}" class="btn btn-info">
+                        <i class="fas fa-file-alt me-2"></i>Manage Templates
+                    </a>
+                    <a href="{% url 'outreach:dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-home me-2"></i>Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Retry failed messages for a campaign
+function retryFailedMessages(campaignId) {
+    if (confirm('Are you sure you want to retry sending failed messages for this campaign?')) {
+        // Here you would implement the retry logic
+        alert('Retry initiated for failed messages. Please check the status in a few moments.');
+        
+        // Optionally refresh the page to show updated status
+        // location.reload();
+    }
+}
+
+// Add click handlers for message count badges
+document.querySelectorAll('.message-counts .badge').forEach(badge => {
+    badge.style.cursor = 'pointer';
+    badge.addEventListener('click', function() {
+        const campaignRow = this.closest('tr');
+        const campaignId = campaignRow.querySelector('a[href*="/campaign/"]').href.split('/').slice(-2)[0];
+        const messageType = this.textContent.toLowerCase();
+        
+        // Navigate to campaign messages page
+        window.location.href = `/outreach/campaign/${campaignId}/messages/`;
+    });
+});
+</script>
+{% endblock %}

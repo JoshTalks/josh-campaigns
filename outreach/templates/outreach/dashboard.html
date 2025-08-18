@@ -1,0 +1,180 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Dashboard - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 text-center mb-4">
+            <i class="fas fa-rocket text-primary me-3"></i>
+            Outreach Campaign Manager
+        </h1>
+        <p class="lead text-center text-muted">
+            Create and manage your customer outreach campaigns
+        </p>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-5">
+    <div class="col-12 text-center">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-4">
+                    <i class="fas fa-bolt text-warning me-2"></i>
+                    Quick Actions
+                </h5>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="{% url 'outreach:add_customers' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-users me-2"></i>Add Customers
+                    </a>
+                    <a href="{% url 'outreach:create_campaign' %}" class="btn btn-success btn-lg">
+                        <i class="fas fa-plus me-2"></i>Create Campaign
+                    </a>
+                    <a href="{% url 'outreach:manage_templates' %}" class="btn btn-info btn-lg">
+                        <i class="fas fa-file-alt me-2"></i>Manage Templates
+                    </a>
+                    <a href="{% url 'outreach:campaign_overview' %}" class="btn btn-warning btn-lg">
+                        <i class="fas fa-chart-line me-2"></i>View Campaigns
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-envelope me-2"></i>
+                    Recent Campaigns
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_campaigns %}
+                    <div class="list-group list-group-flush">
+                        {% for campaign in recent_campaigns %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ campaign.name }}</h6>
+                                <small class="text-muted">
+                                    {{ campaign.get_channel_display }} - {{ campaign.get_status_display }}
+                                </small>
+                            </div>
+                            <span class="badge bg-{% if campaign.status == 'completed' %}success{% elif campaign.status == 'sending' %}warning{% else %}secondary{% endif %}">
+                                {{ campaign.status }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'outreach:campaign_overview' %}" class="btn btn-outline-primary btn-sm">
+                            View All Campaigns
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-envelope fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No campaigns created yet</p>
+                        <a href="{% url 'outreach:create_campaign' %}" class="btn btn-primary">
+                            Create Your First Campaign
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Recent Messages
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_messages %}
+                    <div class="list-group list-group-flush">
+                        {% for message in recent_messages %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ message.customer.name }}</h6>
+                                <small class="text-muted">
+                                    {{ message.campaign.name }} - {{ message.get_status_display }}
+                                </small>
+                            </div>
+                            <span class="status-badge status-{{ message.status }}">
+                                {{ message.status }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'outreach:campaign_overview' %}" class="btn btn-outline-success btn-sm">
+                            View All Messages
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No messages sent yet</p>
+                        <a href="{% url 'outreach:create_campaign' %}" class="btn btn-success">
+                            Send Your First Message
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Getting Started Guide -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    Getting Started Guide
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="step-circle active">
+                            <i class="fas fa-1"></i>
+                        </div>
+                        <h6>Add Customers</h6>
+                        <p class="small text-muted">Upload CSV or manually add customer information</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="step-circle">
+                            <i class="fas fa-2"></i>
+                        </div>
+                        <h6>Choose Channel</h6>
+                        <p class="small text-muted">Select email, SMS, or WhatsApp for outreach</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="step-circle">
+                            <i class="fas fa-3"></i>
+                        </div>
+                        <h6>Select Provider</h6>
+                        <p class="small text-muted">Choose from AWS SES, Twilio, Mailgun, and more</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="step-circle">
+                            <i class="fas fa-4"></i>
+                        </div>
+                        <h6>Send & Track</h6>
+                        <p class="small text-muted">Launch campaigns and monitor delivery status</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
