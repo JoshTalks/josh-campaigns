@@ -81,6 +81,7 @@ WSGI_APPLICATION = "joshCampaigns.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+# Default SQLite configuration for development
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -92,6 +93,32 @@ DATABASES = {
 if os.environ.get('DATABASE_URL'):
     import dj_database_url
     DATABASES['default'] = dj_database_url.parse(os.environ.get('DATABASE_URL'))
+else:
+    # Fallback to PostgreSQL if individual environment variables are set
+    if all(os.environ.get(var) for var in ['DB_NAME', 'DB_USER', 'DB_PASS', 'DB_HOST', 'DB_PORT']):
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.environ.get('DB_NAME'),
+                'USER': os.environ.get('DB_USER'),
+                'PASSWORD': os.environ.get('DB_PASS'),
+                'HOST': os.environ.get('DB_HOST'),
+                'PORT': os.environ.get('DB_PORT'),
+                'OPTIONS': {
+                    'charset': 'utf8',
+                    'connect_timeout': 10,
+                },
+                'CONN_MAX_AGE': 600,  # 10 minutes
+                'CONN_HEALTH_CHECKS': True,
+            }
+        }
+
+# Database connection pool settings for production
+if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+    DATABASES['default']['OPTIONS'].update({
+        'MAX_CONNS': 20,
+        'MIN_CONNS': 5,
+    })
 
 
 # Password validation
@@ -139,13 +166,60 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Redis Configuration
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost:6379')
+REDIS_PASS = os.environ.get('REDIS_PASS', '')
+REDIS_DB = os.environ.get('REDIS_DB', '0')
+
+# Redis connection settings
+REDIS_CONNECTION_POOL = {
+    'host': REDIS_HOST.split(':')[0] if ':' in REDIS_HOST else REDIS_HOST,
+    'port': int(REDIS_HOST.split(':')[1]) if ':' in REDIS_HOST else 6379,
+    'db': int(REDIS_DB),
+    'password': REDIS_PASS,
+    'max_connections': 20,
+    'retry_on_timeout': True,
+    'socket_connect_timeout': 5,
+    'socket_timeout': 5,
+}
+
+# Cache configuration using Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f"redis://:{REDIS_PASS}@{REDIS_HOST}/{REDIS_DB}" if REDIS_PASS else f"redis://{REDIS_HOST}/{REDIS_DB}",
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_CLASS': 'redis.connection.BlockingConnectionPool',
+            'CONNECTION_POOL_CLASS_KWARGS': {
+                'max_connections': 50,
+                'timeout': 20,
+            },
+            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+        },
+        'KEY_PREFIX': 'josh_campaigns',
+        'TIMEOUT': 300,  # 5 minutes default
+    }
+}
+
+# Session configuration using Redis
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
 # Celery Configuration
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 
+    f"redis://:{REDIS_PASS}@{REDIS_HOST}/{REDIS_DB}" if REDIS_PASS else f"redis://{REDIS_HOST}/{REDIS_DB}")
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
+
+# Celery Redis settings
+CELERY_REDIS_MAX_CONNECTIONS = 20
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 10
 
 # Celery Beat Schedule (for periodic tasks)
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'

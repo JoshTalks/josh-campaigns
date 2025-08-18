@@ -142,6 +142,7 @@ GitHub.sublime-settings
 .env.local
 .env.prod
 .env.staging
+.env.dev
 
 # Google Cloud credentials
 service-account-key.json
@@ -170,3 +171,4 @@ README.md
 PRODUCTION_SETUP.md
 start_celery.sh
 .env.example
+start_dev.sh
