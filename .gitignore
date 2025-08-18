@@ -151,6 +151,20 @@ service-account-key.json
 */migrations/*.py
 !*/migrations/__init__.py
 
+# Django database
+*.sqlite3
+*.db
+
+# Django cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django static files (if collected)
+/static/
+/media/
+
+# Documentation files
 DOCKER_README.md
 README.md
 PRODUCTION_SETUP.md
