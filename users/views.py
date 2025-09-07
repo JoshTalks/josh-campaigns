@@ -8,7 +8,7 @@ from django.contrib.auth import login, authenticate
 from .forms import UserRegistrationForm
 from django.contrib import messages
 
-from django.cadminonf import settings
+from django.conf import settings
 from django.core.mail import EmailMessage, send_mail
 from django.template.loader import render_to_string
 from django.core.mail import EmailMessage, send_mail
