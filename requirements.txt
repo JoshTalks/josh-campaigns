@@ -10,3 +10,4 @@ python-decouple==3.8
 sendgrid==6.10.0
 dj-database-url==2.1.0
 django-redis==5.4.0
+requests==2.31.0

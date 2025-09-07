@@ -15,6 +15,9 @@ urlpatterns = [
     path('template/<uuid:template_id>/', views.template_detail, name='template_detail'),
     path('template/<uuid:template_id>/delete/', views.delete_template, name='delete_template'),
     path('csv-processing-status/', views.csv_processing_status, name='csv_processing_status'),
+    path('test-msg91/', views.test_msg91_integration, name='test_msg91_integration'),
+    path('msg91-template-details/', views.msg91_template_details, name='msg91_template_details'),
+    path('test-dynamic-form/', views.test_dynamic_form, name='test_dynamic_form'),
     path('api/providers/', views.get_providers, name='get_providers'),
     path('api/vendor-templates/', views.get_vendor_templates, name='get_vendor_templates'),
 ]

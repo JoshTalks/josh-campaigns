@@ -1,1 +1,11 @@
- 
+name,email,phone,address,job_link
+John Smith,avivish000@gmail.com,+1-555-0101,"123 Main St, New York, NY 10001",https://linkedin.com/in/johnsmith
+Sarah Johnson,avikumar@joshtalks.com,+1-555-0102,"456 Oak Ave, Los Angeles, CA 90210",https://linkedin.com/in/sarahjohnson
+Michael Brown,developers@joshtalks.com,+1-555-0103,"789 Pine Rd, Chicago, IL 60601",https://linkedin.com/in/michaelbrown
+Emily Davis,avikumar@joshtalks.com,+1-555-0104,"321 Elm St, Houston, TX 77001",https://linkedin.com/in/emilydavis
+David Wilson,avikumar@joshtalks.com,+1-555-0105,"654 Maple Dr, Phoenix, AZ 85001",https://linkedin.com/in/davidwilson
+Lisa Anderson,avikumar@joshtalks.com,+1-555-0106,"987 Cedar Ln, Philadelphia, PA 19101",https://linkedin.com/in/lisaanderson
+Robert Taylor,avikumar@joshtalks.com,+1-555-0107,"147 Birch Way, San Antonio, TX 78201",https://linkedin.com/in/roberttaylor
+Jennifer Martinez,avikumar@joshtalks.com,+1-555-0108,"258 Spruce Ct, San Diego, CA 92101",https://linkedin.com/in/jennifermartinez
+Christopher Lee,avikumar@joshtalks.com,+1-555-0109,"369 Willow Pl, Dallas, TX 75201",https://linkedin.com/in/christopherlee
+Amanda Garcia,avikumar@joshtalks.com,+1-555-0110,"741 Aspen St, San Jose, CA 95101",https://linkedin.com/in/amandagarcia 

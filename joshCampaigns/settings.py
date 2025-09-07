@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     "outreach.apps.OutreachConfig",
     "django_celery_beat",
     "django_celery_results",
+    "crispy_forms",
+    "crispy_bootstrap4",
 ]
 
 MIDDLEWARE = [
@@ -89,6 +91,11 @@ DATABASES = {
     }
 }
 
+# Authentication settings
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/outreach/dashboard/'
+LOGOUT_REDIRECT_URL = '/'
+
 # Use PostgreSQL in production if DATABASE_URL is set
 if os.environ.get('DATABASE_URL'):
     import dj_database_url
@@ -105,7 +112,6 @@ else:
                 'HOST': os.environ.get('DB_HOST'),
                 'PORT': os.environ.get('DB_PORT'),
                 'OPTIONS': {
-                    'charset': 'utf8',
                     'connect_timeout': 10,
                 },
                 'CONN_MAX_AGE': 600,  # 10 minutes
@@ -116,8 +122,7 @@ else:
 # Database connection pool settings for production
 if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
     DATABASES['default']['OPTIONS'].update({
-        'MAX_CONNS': 20,
-        'MIN_CONNS': 5,
+        'connect_timeout': 10,
     })
 
 
@@ -156,10 +161,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Changed from 'static' to 'staticfiles'
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'users/static'),
+    os.path.join(BASE_DIR, 'static'),  # Add main static directory
+]
+
+# Static files finders
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
 # Media files
@@ -229,8 +241,11 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Crispy Forms Configuration
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 
+# Email Configuration
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.sendgrid.net"
 EMAIL_PORT = 587
@@ -238,7 +253,11 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "apikey"
 EMAIL_HOST_PASSWORD = os.getenv("SENDGRID_API_KEY")
 DEFAULT_FROM_EMAIL = "developers@joshtalks.com"
-SERVER_EMAIL = "developers@joshtalks.com"  # Add this line
+SERVER_EMAIL = "developers@joshtalks.com"
 
-CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
-CRISPY_TEMPLATE_PACK = "bootstrap4"
+# MSG91 Configuration for Email Campaigns
+MSG91_AUTH_KEY = os.environ.get('MSG91_AUTH_KEY', '465189AMRdJW6Oa68a43d18P1')
+MSG91_EMAIL_ENDPOINT = "https://control.msg91.com/api/v5/email"
+MSG91_EMAIL_FROM = os.environ.get('MSG91_EMAIL_FROM', 'noreply@yourdomain.com')
+MSG91_EMAIL_FROM_NAME = os.environ.get('MSG91_EMAIL_FROM_NAME', 'Your Company Name')
+MSG91_EMAIL_DOMAIN = os.environ.get('MSG91_EMAIL_DOMAIN', 'joshcampaigns.com')

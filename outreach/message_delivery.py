@@ -2,7 +2,8 @@ import logging
 from django.conf import settings
 from django.core.mail import EmailMessage
 from .models import Campaign, Message, Customer
-from datetime import datetime
+from .msg91_service import MSG91EmailService
+from django.utils import timezone
 import time
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def send_campaign_messages_sync(campaign_id):
                 
                 if success:
                     message.status = 'sent'
-                    message.sent_at = datetime.now()
+                    message.sent_at = timezone.now()
                     success_count += 1
                     logger.info(f"Message sent successfully to {customer.email or customer.phone}")
                 else:
@@ -71,8 +72,8 @@ def send_campaign_messages_sync(campaign_id):
         else:
             campaign.status = 'completed'  # Still mark as completed even with some failures
         
-        campaign.sent_at = datetime.now()
-        campaign.completed_at = datetime.now()
+        campaign.sent_at = timezone.now()
+        campaign.completed_at = timezone.now()
         campaign.save()
         
         logger.info(f"Campaign {campaign.name} completed. Success: {success_count}, Failures: {failure_count}")
@@ -93,7 +94,7 @@ def send_campaign_messages_sync(campaign_id):
 
 def send_email_message(campaign, customer, message):
     """
-    Send email message using SendGrid
+    Send email message using the configured provider (SendGrid or MSG91)
     """
     try:
         # Prepare email content with customer variables
@@ -110,21 +111,71 @@ def send_email_message(campaign, customer, message):
         content = content.replace('{{address}}', customer.address or '')
         content = content.replace('{{job_link}}', customer.job_link or '')
         
-        # Send email using Django's email backend (SendGrid)
-        email = EmailMessage(
-            subject=subject,
-            body=content,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[customer.email]
-        )
-        
         # Check if content contains HTML
-        if '<' in content and '>' in content:
-            email.content_subtype = 'html'
+        is_html = '<' in content and '>' in content
         
-        email.send()
+        # Send email based on provider
+        if campaign.provider == 'msg91-email':
+            # Use MSG91 for email sending
+            msg91_service = MSG91EmailService()
+            
+            # Check if campaign has a template with external_id
+            if campaign.template and campaign.template.external_id:
+                # Use template-based sending
+                # Map customer data to template variables
+                variables = {
+                    "name": customer.name or "Customer",
+                    "email": customer.email,
+                    "phone": customer.phone or "",
+                    "address": customer.address or "",
+                    "job_link": customer.job_link or "",
+                    # Add common template variables
+                    "company_name": "JoshTalks",  # Default company name
+                    "otp": "123456",  # Default OTP - should be generated dynamically
+                }
+                
+                # Add custom placeholders from campaign if available
+                if hasattr(campaign, 'custom_placeholders') and campaign.custom_placeholders:
+                    # Clean up malformed placeholders
+                    clean_placeholders = {}
+                    for key, value in campaign.custom_placeholders.items():
+                        # Skip malformed keys like ' + variable + '
+                        if isinstance(key, str) and not (' + ' in key and ' + ' in key):
+                            clean_placeholders[key] = value
+                    variables.update(clean_placeholders)
+                
+                success, msg = msg91_service.send_template_email(
+                    to_email=customer.email,
+                    customer_name=customer.name or "Customer",
+                    template_id=campaign.template.external_id,
+                    variables=variables
+                )
+            else:
+                # MSG91 requires template_id for all emails
+                message.error_message = "MSG91 requires template_id for all emails. Please select a template with external_id."
+                logger.error(f"MSG91 email sending failed to {customer.email}: No template_id provided")
+                return False
+            
+            if not success:
+                message.error_message = msg
+                logger.error(f"MSG91 email sending failed to {customer.email}: {msg}")
+                return False
+                
+        else:
+            # Use Django's email backend (SendGrid) as fallback
+            email = EmailMessage(
+                subject=subject,
+                body=content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[customer.email]
+            )
+            
+            if is_html:
+                email.content_subtype = 'html'
+            
+            email.send()
         
-        logger.info(f"Email sent successfully to {customer.email}")
+        logger.info(f"Email sent successfully to {customer.email} using {campaign.provider}")
         return True
         
     except Exception as e:

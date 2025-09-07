@@ -19,27 +19,90 @@
 <div class="row mb-5">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
-            <div class="progress-step">
+            <div class="progress-step" id="step-1-indicator">
                 <div class="step-circle active">
-                    <i class="fas fa-1"></i>
+                    <i class="fas fa-broadcast-tower"></i>
                 </div>
                 <h6>Channel & Provider</h6>
             </div>
-            <div class="progress-step">
+            <div class="progress-step" id="step-2-indicator">
                 <div class="step-circle">
-                    <i class="fas fa-2"></i>
+                    <i class="fas fa-eye"></i>
                 </div>
-                <h6>Message Content</h6>
+                <h6>Template Review & Preview</h6>
             </div>
-            <div class="progress-step">
+            <div class="progress-step" id="step-3-indicator">
                 <div class="step-circle">
-                    <i class="fas fa-3"></i>
+                    <i class="fas fa-users"></i>
                 </div>
                 <h6>Review & Send</h6>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.progress-step {
+    text-align: center;
+    flex: 1;
+    position: relative;
+}
+
+.progress-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background-color: #e9ecef;
+    z-index: 1;
+}
+
+.step-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 18px;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.step-circle.active {
+    background-color: #007bff;
+    color: white;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+}
+
+.step-circle.completed {
+    background-color: #28a745;
+    color: white;
+}
+
+.progress-step h6 {
+    font-size: 14px;
+    margin: 0;
+    color: #6c757d;
+    transition: color 0.3s ease;
+}
+
+.progress-step.active h6 {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.progress-step.completed h6 {
+    color: #28a745;
+    font-weight: 600;
+}
+</style>
 
 <!-- Step 1: Channel & Provider Selection -->
 <div class="row" id="step1">
@@ -48,12 +111,17 @@
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">
                     <i class="fas fa-broadcast-tower me-2"></i>
-                    Step 1: Channel & Provider Selection
+                    Step 1: Channel, Provider & Template Selection
                 </h5>
             </div>
             <div class="card-body">
                 <form method="post" id="campaign-form">
                     {% csrf_token %}
+                    
+                    <!-- Hidden fields for custom placeholder values -->
+                    <div id="hidden-placeholder-fields" style="display: none;">
+                        <!-- Custom placeholder values will be added here dynamically -->
+                    </div>
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -82,49 +150,153 @@
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-6 mb-3" id="subject-field" style="display: none;">
-                            <label for="{{ form.subject.id_for_label }}" class="form-label">
-                                <i class="fas fa-heading me-1"></i>Email Subject *
+                        <div class="col-md-6 mb-3" id="template-field">
+                            <label for="{{ form.template.id_for_label }}" class="form-label">
+                                <i class="fas fa-file-alt me-1"></i>{{ form.template.label }}
                             </label>
-                            {{ form.subject }}
-                            {% if form.subject.errors %}
+                            {{ form.template }}
+                            {% if form.template.errors %}
                                 <div class="alert alert-danger mt-1">
-                                    {{ form.subject.errors }}
+                                    {{ form.template.errors }}
                                 </div>
                             {% endif %}
-                        </div>
-                        
-                        <div class="col-md-6 mb-3" id="vendor-template-field" style="display: none;">
-                            <label for="{{ form.vendor_template.id_for_label }}" class="form-label">
-                                <i class="fas fa-file-alt me-1"></i>{{ form.vendor_template.label }}
-                            </label>
-                            {{ form.vendor_template }}
-                            {% if form.vendor_template.errors %}
-                                <div class="alert alert-danger mt-1">
-                                    {{ form.vendor_template.errors }}
-                                </div>
-                            {% endif %}
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Select a message template for your campaign. Templates are automatically loaded based on your channel and provider selection.
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="mb-3" id="content-field">
-                        <label for="{{ form.content.id_for_label }}" class="form-label">
-                            <i class="fas fa-envelope me-1"></i>Message Content *
-                        </label>
-                        {{ form.content }}
-                        {% if form.content.errors %}
-                            <div class="alert alert-danger mt-1">
-                                {{ form.content.errors }}
+                    <!-- Template Preview Section -->
+                    <div class="row" id="template-preview-section" style="display: none;">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-eye me-2"></i>Selected Template Preview
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <p><strong>Template Name:</strong></p>
+                                            <p id="preview-template-name" class="text-primary fw-bold">-</p>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <p><strong>Message Content:</strong></p>
+                                            <div id="preview-template-content" class="border p-3 bg-light rounded">
+                                                <p class="text-muted">Select a template to preview its content...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        {% endif %}
-                        
-                        <div class="form-text">
-                            <strong>Available variables:</strong><br>
-                            <code>{{name}}</code> - Customer name<br>
-                            <code>{{email}}</code> - Customer email<br>
-                            <code>{{phone}}</code> - Customer phone<br>
-                            <code>{{address}}</code> - Customer address<br>
-                            <code>{{job_link}}</code> - Job link
+                        </div>
+                    </div>
+                    
+                    <!-- Template Review & Preview Section -->
+                    <div class="row" id="template-review-section" style="display: none;">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-search me-2"></i>Template Review & Preview
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Review your template, see all placeholders, and test with custom values
+                                    </small>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Template Analysis -->
+                                    <div class="row mb-4">
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-chart-bar me-2"></i>Template Analysis</h6>
+                                            <div id="template-analysis">
+                                                <p class="text-muted">Template analysis will appear here...</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-tags me-2"></i>Placeholders Found</h6>
+                                            <div id="placeholders-found">
+                                                <p class="text-muted">Placeholders will appear here...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Placeholder Replacement Section -->
+                                    <div class="row mb-4">
+                                        <div class="col-12">
+                                            <h6><i class="fas fa-edit me-2"></i>Placeholder Replacement</h6>
+                                            <p class="text-muted mb-3">Enter custom values for each placeholder to see how your template will look:</p>
+                                            <div id="placeholder-inputs">
+                                                <p class="text-muted">Placeholder input fields will appear here...</p>
+                                            </div>
+                                                                           <div class="mt-3">
+                                   <button type="button" class="btn btn-primary" onclick="generatePreviewWithPlaceholders()">
+                                       <i class="fas fa-eye me-1"></i>Generate Preview with Custom Values
+                                   </button>
+                                   <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="resetPlaceholderValues()">
+                                       <i class="fas fa-undo me-1"></i>Reset to Sample Values
+                                   </button>
+                               </div>
+                               <div class="alert alert-info mt-3" id="placeholder-notice" style="display: none;">
+                                   <i class="fas fa-info-circle me-2"></i>
+                                   <strong>Important:</strong> The custom values you enter here will be used when sending emails to your customers. 
+                                   Make sure to test with realistic values that represent your actual campaign content.
+                               </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Enhanced Preview Tabs -->
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <h6><i class="fas fa-eye me-2"></i>Template Preview</h6>
+                                            <ul class="nav nav-tabs" id="review-preview-tabs" role="tablist">
+                                                <li class="nav-item" role="presentation">
+                                                    <button class="nav-link active" id="original-template-tab" data-bs-toggle="tab" data-bs-target="#original-template-content" type="button" role="tab">
+                                                        <i class="fas fa-code me-1"></i>Original Template
+                                                    </button>
+                                                </li>
+                                                <li class="nav-item" role="presentation">
+                                                    <button class="nav-link" id="custom-preview-tab" data-bs-toggle="tab" data-bs-target="#custom-preview-content" type="button" role="tab">
+                                                        <i class="fas fa-eye me-1"></i>Custom Preview
+                                                    </button>
+                                                </li>
+                                                <li class="nav-item" role="presentation">
+                                                    <button class="nav-link" id="html-preview-tab" data-bs-toggle="tab" data-bs-target="#html-preview-content" type="button" role="tab">
+                                                        <i class="fas fa-html5 me-1"></i>HTML Preview
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                            
+                                            <div class="tab-content mt-3" id="review-preview-tabs-content">
+                                                <div class="tab-pane fade show active" id="original-template-content" role="tabpanel">
+                                                    <div class="border p-3 bg-light rounded" style="max-height: 300px; overflow-y: auto;">
+                                                        <div id="original-template-text">
+                                                            <p class="text-muted">Original template content will appear here...</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="tab-pane fade" id="custom-preview-content" role="tabpanel">
+                                                    <div class="border p-3 bg-white rounded" style="max-height: 300px; overflow-y: auto;">
+                                                        <div id="custom-preview-text">
+                                                            <p class="text-muted">Custom preview with replaced placeholders will appear here...</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="tab-pane fade" id="html-preview-content" role="tabpanel">
+                                                    <div class="border p-3 bg-white rounded" style="max-height: 300px; overflow-y: auto;">
+                                                        <div id="html-preview-text">
+                                                            <p class="text-muted">HTML formatted preview will appear here...</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -154,11 +326,11 @@
                         
                         {% if customers_count > 0 %}
                         <button type="button" class="btn btn-primary" id="step1-next" disabled>
-                            <i class="fas fa-arrow-right me-2"></i>Next: Message Content
+                            <i class="fas fa-arrow-right me-2"></i>Next: Template Review
                         </button>
                         {% else %}
                         <button type="button" class="btn btn-primary" disabled>
-                            <i class="fas fa-arrow-right me-2"></i>Next: Message Content
+                            <i class="fas fa-arrow-right me-2"></i>Next: Template Review
                         </button>
                         {% endif %}
                     </div>
@@ -174,39 +346,150 @@
         <div class="card">
             <div class="card-header bg-warning text-dark">
                 <h5 class="mb-0">
-                    <i class="fas fa-edit me-2"></i>
-                    Step 2: Message Content
+                    <i class="fas fa-file-alt me-2"></i>
+                    Step 2: Template Review & Preview
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-8">
-                        <div class="mb-3" id="step2-subject-field" style="display: none;">
-                            <label for="message-subject" class="form-label">
-                                <i class="fas fa-heading me-1"></i>Subject Line
-                            </label>
-                            <input type="text" class="form-control" id="message-subject" placeholder="Enter your subject line">
-                            <div class="form-text">Subject is required for email campaigns</div>
-                        </div>
-                        
-                        <div class="mb-3" id="step2-content-field" style="display: none;">
-                            <label for="message-content" class="form-label">
-                                <i class="fas fa-envelope me-1"></i>Message Content
-                            </label>
-                            <textarea class="form-control" id="message-content" rows="8" placeholder="Write your message here...
-
-Available variables:
-{{name}} - Customer name
-{{email}} - Customer email
-{{phone}} - Customer phone
-{{address}} - Customer address
-{{job_link}} - Job link"></textarea>
-                        </div>
-                        
-                        <div class="mb-3" id="template-info" style="display: none;">
+                        <div class="mb-3" id="template-info">
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
                                 <strong>Vendor Template Selected:</strong> Your message content is pre-filled from the selected template.
+                                <br><small class="text-muted">For MSG91 templates, complete details including subject, variables, and visual preview are automatically loaded.</small>
+                            </div>
+                            <!-- Template Details -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Template Details</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Template Name:</strong></p>
+                                            <p id="template-name" class="text-muted">Template name will appear here...</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Template Subject:</strong></p>
+                                            <p id="template-subject" class="text-muted">Template subject will appear here...</p>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <p><strong>Template Content:</strong></p>
+                                        <div id="template-content" class="border p-3 bg-light rounded">
+                                            <p class="text-muted">Template content will appear here...</p>
+                                        </div>
+                                        <small class="text-muted">Note: This shows the HTML template content with variables highlighted</small>
+                                        
+                                        <div class="mt-3">
+                                            <p><strong>Text Version (Readable):</strong></p>
+                                            <div id="template-content-text" class="border p-3 bg-light rounded">
+                                                <p class="text-muted">Text version will appear here...</p>
+                                            </div>
+                                            <small class="text-muted">Note: This shows a clean text version with variables highlighted</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                                    
+                                    <!-- Variables Section -->
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <h6><i class="fas fa-tags me-2"></i>Template Variables</h6>
+                                            <div class="alert alert-info">
+                                                <p class="mb-2"><strong>These variables are used in your template:</strong></p>
+                                                <div id="template-variables-list">
+                                                    <p class="text-muted">Variables will be loaded from the selected template...</p>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Variable Testing Section -->
+                                            <div class="card mt-3">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">
+                                                        <i class="fas fa-edit me-2"></i>Test Variables
+                                                    </h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p class="text-muted mb-3">Enter test values to see how your template will look:</p>
+                                                    <div id="variable-inputs">
+                                                        <p class="text-muted">Variable inputs will appear here...</p>
+                                                    </div>
+                                                    <button type="button" class="btn btn-primary btn-sm mt-2" onclick="previewWithCustomVariables()">
+                                                        <i class="fas fa-eye me-1"></i>Preview with Custom Values
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Preview with Sample Data -->
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <h6><i class="fas fa-eye me-2"></i>Template Preview</h6>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <ul class="nav nav-tabs" id="preview-tabs" role="tablist">
+                                                        <li class="nav-item" role="presentation">
+                                                            <button class="nav-link active" id="html-preview-tab" data-bs-toggle="tab" data-bs-target="#html-preview-content" type="button" role="tab" aria-controls="html-preview-content" aria-selected="true">
+                                                                <i class="fas fa-code me-1"></i>HTML Preview
+                                                            </button>
+                                                        </li>
+                                                        <li class="nav-item" role="presentation">
+                                                            <button class="nav-link" id="sample-preview-tab" data-bs-toggle="tab" data-bs-target="#sample-preview-content" type="button" role="tab" aria-controls="sample-preview-content" aria-selected="false">
+                                                                <i class="fas fa-eye me-1"></i>Text Preview
+                                                            </button>
+                                                        </li>
+                                                        <li class="nav-item" role="presentation" id="msg91-preview-tab-container" style="display: none;">
+                                                            <button class="nav-link" id="msg91-preview-tab" data-bs-toggle="tab" data-bs-target="#msg91-preview-content" type="button" role="tab" aria-controls="msg91-preview-content" aria-selected="false">
+                                                                <i class="fas fa-image me-1"></i>MSG91 Preview
+                                                            </button>
+                                                        </li>
+                                                    </ul>
+                                                    
+                                                    <div class="tab-content mt-3" id="preview-tabs-content">
+                                                                                <div class="tab-pane fade show active" id="html-preview-content" role="tabpanel">
+                            <p class="text-muted mb-2">See the original HTML template with variables highlighted:</p>
+                            <div id="html-preview-content-inner" class="border p-3 bg-white rounded" style="max-height: 400px; overflow-y: auto;">
+                                <p class="text-muted">HTML content will appear here...</p>
+                            </div>
+                        </div>
+                                                        <div class="tab-pane fade" id="sample-preview-content" role="tabpanel">
+                                                            <p class="text-muted mb-2">See how your message will look with sample data:</p>
+                                                            
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <h6>HTML Preview:</h6>
+                                                                    <div id="sample-preview-content" class="border p-3 bg-white rounded" style="max-height: 300px; overflow-y: auto;">
+                                                                        <p class="text-muted">Click "Load Sample Preview" to see how variables will be replaced...</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <h6>Text Preview:</h6>
+                                                                    <div id="sample-preview-text" class="border p-3 bg-white rounded" style="max-height: 300px; overflow-y: auto;">
+                                                                        <p class="text-muted">Text version will appear here...</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="loadSamplePreview()">
+                                                                <i class="fas fa-eye me-1"></i>Load Sample Preview
+                                                            </button>
+                                                        </div>
+                                                        
+                                                        <div class="tab-pane fade" id="msg91-preview-content" role="tabpanel">
+                                                            <p class="text-muted mb-2">Visual preview from MSG91:</p>
+                                                            <div id="msg91-preview-content" class="text-center">
+                                                                <p class="text-muted">MSG91 preview will appear here...</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -228,14 +511,19 @@ Available variables:
                         <div class="card mt-3" id="vendor-template-card" style="display:none;">
                             <div class="card-header">
                                 <h6 class="mb-0">
-                                    <i class="fas fa-file-alt me-2"></i>Use Template
+                                    <i class="fas fa-file-alt me-2"></i>Template Information
                                 </h6>
                             </div>
                             <div class="card-body">
-                                <select class="form-control" id="template-selector"></select>
-                                <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="loadTemplate()">
-                                    <i class="fas fa-download me-1"></i>Load Template
-                                </button>
+                                <p class="text-muted mb-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    The selected template content is displayed above. You can see how variables will be replaced using the "Load Sample Preview" button.
+                                </p>
+                                <div class="alert alert-info">
+                                    <small>
+                                        <strong>Note:</strong> Variables like {{name}}, {{email}} will be automatically replaced with actual customer data when your campaign is sent.
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -283,6 +571,10 @@ Available variables:
                                 <td id="review-provider">-</td>
                             </tr>
                             <tr>
+                                <td><strong>Template:</strong></td>
+                                <td id="review-template">-</td>
+                            </tr>
+                            <tr>
                                 <td><strong>Subject:</strong></td>
                                 <td id="review-subject">-</td>
                             </tr>
@@ -298,7 +590,13 @@ Available variables:
                         <div class="card">
                             <div class="card-body">
                                 <div id="review-message">
-                                    <p class="text-muted">Message preview will appear here...</p>
+                                    <p class="text-muted">Template content with variables will appear here...</p>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Variables like {{name}}, {{email}} will be replaced with actual customer data when sending.
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -310,15 +608,23 @@ Available variables:
                     <strong>Ready to send?</strong> Please review all details above before launching your campaign.
                 </div>
                 
-                <div class="d-flex justify-content-between">
-                    <button type="button" class="btn btn-secondary" onclick="showStep(2)">
-                        <i class="fas fa-arrow-left me-2"></i>Previous
-                    </button>
-                    
-                    <button type="button" class="btn btn-success btn-lg" onclick="launchCampaign()">
-                        <i class="fas fa-rocket me-2"></i>Launch Campaign
-                    </button>
-                </div>
+                                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-secondary" onclick="showStep(2)">
+                            <i class="fas fa-arrow-left me-2"></i>Previous
+                        </button>
+                        
+                        <div class="text-center">
+                            <div id="custom-placeholders-summary" class="alert alert-warning mb-3" style="display: none;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Campaign will use custom placeholder values:</strong>
+                                <div id="placeholders-summary-list" class="mt-2"></div>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-success btn-lg" onclick="launchCampaign()">
+                            <i class="fas fa-rocket me-2"></i>Launch Campaign
+                        </button>
+                    </div>
             </div>
         </div>
     </div>
@@ -327,101 +633,1039 @@ Available variables:
 
 {% block extra_js %}
 <script>
+// Campaign creation JavaScript
 let currentStep = 1;
 let selectedChannel = '';
 let selectedProvider = '';
 let campaignData = {};
+console.log('campaignData initialized:', campaignData);
 
-// Channel selection
-document.getElementById('{{ form.channel.id_for_label }}').addEventListener('change', function() {
-    selectedChannel = this.value;
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing campaign form...');
     
-    // Reset provider while loading
-    const providerSelect = document.getElementById('{{ form.provider.id_for_label }}');
-    providerSelect.innerHTML = '<option value="">Loading providers...</option>';
-    selectedProvider = '';
-    checkStep1Complete();
+    // Try multiple ways to find form elements
+    const channelSelect = document.getElementById('{{ form.channel.id_for_label }}') || 
+                         document.querySelector('select[name="channel"]') ||
+                         document.querySelector('#id_channel');
+    
+    const providerSelect = document.getElementById('{{ form.provider.id_for_label }}') || 
+                          document.querySelector('select[name="provider"]') ||
+                          document.querySelector('#id_provider');
+    
+    const templateSelect = document.getElementById('{{ form.template.id_for_label }}') || 
+                          document.querySelector('select[name="template"]') ||
+                          document.querySelector('#id_template');
+    
+    console.log('Form elements found:', {
+        channel: channelSelect,
+        provider: providerSelect,
+        template: templateSelect
+    });
+    
+    // Also log all select elements to see what's available
+    const allSelects = document.querySelectorAll('select');
+    console.log('All select elements found:', allSelects);
+    
+    if (!channelSelect || !providerSelect || !templateSelect) {
+        console.error('Required form elements not found!');
+        console.error('Channel ID expected:', '{{ form.channel.id_for_label }}');
+        console.error('Provider ID expected:', '{{ form.provider.id_for_label }}');
+        console.error('Template ID expected:', '{{ form.template.id_for_label }}');
+        return;
+    }
+    
+    console.log('All form elements found successfully, adding event listeners...');
+    
+    // Initialize provider and template fields
+    providerSelect.innerHTML = '<option value="">Select Channel First</option>';
+    templateSelect.innerHTML = '<option value="">Select Provider First</option>';
+    
+    // Channel selection
+    channelSelect.addEventListener('change', function() {
+        console.log('Channel changed to:', this.value);
+        selectedChannel = this.value;
+        
+        // Reset provider and template when channel changes
+        if (providerSelect) {
+            providerSelect.innerHTML = '<option value="">Loading providers...</option>';
+            selectedProvider = '';
+        }
+        
+        if (templateSelect) {
+            templateSelect.innerHTML = '<option value="">Select Provider First</option>';
+        }
+        
+        checkStep1Complete();
 
-    // Fetch providers for selected channel
-    if (selectedChannel) {
-        const url = new URL('{% url "outreach:get_providers" %}', window.location.origin);
-        url.searchParams.set('channel', selectedChannel);
-        fetch(url.toString(), { credentials: 'same-origin' })
-            .then(res => res.json())
-            .then(data => {
-                providerSelect.innerHTML = '<option value="">Select provider</option>';
-                (data.providers || []).forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.value;
-                    opt.textContent = p.label;
-                    providerSelect.appendChild(opt);
+        // Fetch providers for selected channel
+        if (selectedChannel) {
+            console.log('Fetching providers for channel:', selectedChannel);
+            const url = new URL('{% url "outreach:get_providers" %}', window.location.origin);
+            url.searchParams.set('channel', selectedChannel);
+            console.log('Fetching providers from:', url.toString());
+            
+            fetch(url.toString(), { credentials: 'same-origin' })
+                .then(res => {
+                    console.log('Providers response status:', res.status);
+                    if (!res.ok) {
+                        throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    console.log('Providers response:', data);
+                    providerSelect.innerHTML = '<option value="">Select Provider</option>';
+                    
+                    if (data.providers && data.providers.length > 0) {
+                        data.providers.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p.value;
+                            opt.textContent = p.label;
+                            providerSelect.appendChild(opt);
+                        });
+                        console.log('Loaded', data.providers.length, 'providers');
+                    } else {
+                        providerSelect.innerHTML = '<option value="">No providers available</option>';
+                        console.log('No providers found for channel:', selectedChannel);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error loading providers:', error);
+                    providerSelect.innerHTML = '<option value="">Error loading providers</option>';
                 });
-            })
-            .catch(() => {
-                providerSelect.innerHTML = '<option value="">No providers available</option>';
-            });
-    }
+        } else {
+            // No channel selected, reset provider
+            providerSelect.innerHTML = '<option value="">Select Channel First</option>';
+        }
+        
+        // Hide template preview when channel changes
+        hideTemplatePreview();
+    });
     
-    // Toggle email subject field, vendor template field, and content field
-    document.getElementById('subject-field').style.display = selectedChannel === 'email' ? 'block' : 'none';
-    document.getElementById('vendor-template-field').style.display = selectedChannel === 'email' ? 'none' : 'block';
-    document.getElementById('content-field').style.display = selectedChannel === 'email' ? 'block' : 'none';
+    // Provider selection
+    providerSelect.addEventListener('change', function() {
+        console.log('Provider changed to:', this.value);
+        selectedProvider = this.value;
+        checkStep1Complete();
+        
+        // Clear vendor template field when provider changes
+        if (templateSelect) {
+            templateSelect.innerHTML = '<option value="">Loading templates...</option>';
+        }
+        
+        // Hide template preview when provider changes
+        hideTemplatePreview();
+        
+        // Load vendor templates if channel and provider are selected
+        if (selectedChannel && selectedProvider) {
+            console.log('Loading templates for channel:', selectedChannel, 'provider:', selectedProvider);
+            loadVendorTemplatesForStep1();
+        } else {
+            // No provider selected, reset template
+            if (templateSelect) {
+                templateSelect.innerHTML = '<option value="">Select Provider First</option>';
+            }
+        }
+    });
     
-    // Clear content field for non-email channels
-    if (selectedChannel !== 'email') {
-        document.getElementById('{{ form.content.id_for_label }}').value = '';
-    }
-});
-
-// Provider selection
-document.getElementById('{{ form.provider.id_for_label }}').addEventListener('change', function() {
-    selectedProvider = this.value;
+    // Vendor template selection
+    templateSelect.addEventListener('change', function() {
+        console.log('Template changed to:', this.value);
+        const templateId = this.value;
+        if (templateId) {
+            // Show template preview
+            showTemplatePreview(templateId);
+        } else {
+            // Hide template preview
+            hideTemplatePreview();
+        }
+        checkStep1Complete();
+    });
+    
+    // Initial check
     checkStep1Complete();
-    
-    // Load vendor templates if channel is selected and not email
-    if (selectedChannel && selectedChannel !== 'email' && selectedProvider) {
-        loadVendorTemplatesForStep1();
-    }
+    console.log('Campaign form initialized successfully');
 });
 
-// Check if step 1 is complete (both channel and provider selected)
+// Check if step 1 is complete (channel, provider, and vendor template selected)
 function checkStep1Complete() {
     const nextButton = document.getElementById('step1-next');
-    if (selectedChannel && selectedProvider) {
-        nextButton.disabled = false;
-        nextButton.innerHTML = '<i class="fas fa-arrow-right me-2"></i>Next: Message Content';
-    } else {
-        nextButton.disabled = true;
-        nextButton.innerHTML = '<i class="fas fa-arrow-right me-2"></i>Next: Message Content';
+    if (nextButton) {
+        const templateField = document.getElementById('{{ form.template.id_for_label }}');
+        const hasTemplate = templateField && templateField.value;
+        
+        if (selectedChannel && selectedProvider && hasTemplate) {
+            nextButton.disabled = false;
+            nextButton.innerHTML = '<i class="fas fa-arrow-right me-2"></i>Next: Template Review';
+        } else {
+            nextButton.disabled = true;
+            nextButton.innerHTML = '<i class="fas fa-arrow-right me-2"></i>Next: Template Review';
+        }
     }
 }
 
 // Load vendor templates for step 1 (when channel and provider are selected)
 function loadVendorTemplatesForStep1() {
-    if (!selectedChannel || !selectedProvider || selectedChannel === 'email') return;
+    const templateField = document.getElementById('{{ form.template.id_for_label }}');
+    if (!templateField) {
+        console.error('Template field not found');
+        return;
+    }
     
-    const vendorTemplateField = document.getElementById('{{ form.vendor_template.id_for_label }}');
-    vendorTemplateField.innerHTML = '<option value="">Loading templates...</option>';
+    console.log('Loading templates for channel:', selectedChannel, 'provider:', selectedProvider);
+    templateField.innerHTML = '<option value="">Loading templates...</option>';
     
     const url = new URL('{% url "outreach:get_vendor_templates" %}', window.location.origin);
     url.searchParams.set('channel', selectedChannel);
     url.searchParams.set('provider', selectedProvider);
     
+    console.log('Fetching templates from:', url.toString());
+    
     fetch(url.toString(), { credentials: 'same-origin' })
-        .then(res => res.json())
-        .then(data => {
-            vendorTemplateField.innerHTML = '<option value="">Select a vendor template (optional)</option>';
-            (data.templates || []).forEach(t => {
-                const opt = document.createElement('option');
-                opt.value = t.id;
-                opt.textContent = t.name;
-                opt.dataset.content = t.content;
-                vendorTemplateField.appendChild(opt);
-            });
+        .then(res => {
+            console.log('Templates response status:', res.status);
+            if (!res.ok) {
+                throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+            }
+            return res.json();
         })
-        .catch(() => {
-            vendorTemplateField.innerHTML = '<option value="">No templates available</option>';
+        .then(data => {
+            console.log('Templates response:', data);
+            templateField.innerHTML = '<option value="">Select a template *</option>';
+            
+            if (data.templates && data.templates.length > 0) {
+                data.templates.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.textContent = t.name;
+                    
+                    // Store template data in dataset for later use
+                    if (t.content) {
+                        opt.dataset.content = t.content;
+                    }
+                    if (t.subject) {
+                        opt.dataset.subject = t.subject;
+                    }
+                    if (t.preview_link) {
+                        opt.dataset.previewLink = t.preview_link;
+                    }
+                    
+                    templateField.appendChild(opt);
+                });
+                
+                console.log('Loaded', data.templates.length, 'templates');
+            } else {
+                console.log('No templates found');
+                templateField.innerHTML = '<option value="">No templates available</option>';
+            }
+            
+            // Remove existing event listener to prevent duplicates
+            templateField.removeEventListener('change', handleTemplateChange);
+            
+            // Add event listener for template selection to fetch complete details
+            templateField.addEventListener('change', handleTemplateChange);
+            
+            // Show error message if there's an error
+            if (data.error) {
+                console.error('Template loading error:', data.error);
+            }
+        })
+        .catch((error) => {
+            console.error('Error loading templates:', error);
+            templateField.innerHTML = '<option value="">Error loading templates</option>';
         });
+}
+
+// Handle template change event
+async function handleTemplateChange() {
+    const templateField = document.getElementById('{{ form.template.id_for_label }}');
+    const selectedOption = templateField.options[templateField.selectedIndex];
+    
+    if (!selectedOption || !selectedOption.value) {
+        console.log('No template selected');
+        return;
+    }
+    
+    const originalTemplateName = selectedOption.textContent;
+    console.log('Template selected:', originalTemplateName);
+    
+    // Update textContent to show loading state
+    selectedOption.textContent = 'Loading template details...';
+    
+    try {
+        // Call MSG91 API to get complete template details
+        await loadMSG91TemplateDetails(originalTemplateName);
+        
+        // Restore original text content after successful API call
+        selectedOption.textContent = originalTemplateName;
+        
+        // Show template preview
+        showTemplatePreview();
+        
+    } catch (error) {
+        console.error('Error in handleTemplateChange:', error);
+        // Restore original text content on error
+        selectedOption.textContent = originalTemplateName;
+    }
+}
+
+// Show template preview
+function showTemplatePreview(templateId) {
+    const templateField = document.getElementById('{{ form.template.id_for_label }}');
+    const selectedOption = templateField.options[templateField.selectedIndex];
+    
+    if (selectedOption && selectedOption.dataset.content) {
+        const templateContent = selectedOption.dataset.content;
+        const templateSubject = selectedOption.dataset.subject || 'No subject';
+        
+        // Update template info display
+        const templateNameElement = document.getElementById('template-name');
+        const templateContentElement = document.getElementById('template-content');
+        const templateSubjectElement = document.getElementById('template-subject');
+        
+        if (templateNameElement) {
+            templateNameElement.textContent = selectedOption.textContent;
+        }
+        
+        if (templateContentElement) {
+            // Strip HTML and decode entities for display
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = templateContent;
+            const textContent = tempDiv.textContent || tempDiv.innerText || '';
+            templateContentElement.textContent = textContent;
+        }
+        
+        if (templateSubjectElement) {
+            templateSubjectElement.textContent = templateSubject;
+        }
+        
+        // Store template data in campaignData
+        if (campaignData) {
+            campaignData.content = templateContent;
+            campaignData.template_subject = templateSubject;
+            campaignData.template_name = selectedOption.textContent;
+            campaignData.template = selectedOption.value; // Store the template ID
+            
+            // Parse variables from template content
+            if (selectedOption.dataset.variables) {
+                try {
+                    campaignData.template_variables = JSON.parse(selectedOption.dataset.variables);
+                } catch (e) {
+                    // Fallback to regex parsing if dataset.variables is not available
+                    campaignData.template_variables = extractTemplateVariables(templateContent);
+                }
+            } else {
+                // Fallback to regex parsing
+                campaignData.template_variables = extractTemplateVariables(templateContent);
+            }
+            
+            // Store preview link if available
+            if (selectedOption.dataset.previewLink) {
+                campaignData.preview_link = selectedOption.dataset.previewLink;
+            }
+        }
+        
+        // Show template preview section
+        const templatePreviewSection = document.getElementById('template-preview-section');
+        if (templatePreviewSection) {
+            templatePreviewSection.style.display = 'block';
+        }
+        
+        // Load sample preview
+        loadSamplePreview();
+        
+        // Show template review section and populate it
+        showTemplateReviewSection(templateContent);
+        
+        console.log('Template preview loaded:', {
+            name: selectedOption.textContent,
+            subject: templateSubject,
+            content: templateContent,
+            variables: campaignData.template_variables
+        });
+    } else {
+        console.log('No template content available for preview');
+        hideTemplatePreview();
+    }
+}
+
+// Show template review section with analysis and placeholder inputs
+function showTemplateReviewSection(templateContent) {
+    console.log('showTemplateReviewSection called with content:', templateContent);
+    
+    const templateReviewSection = document.getElementById('template-review-section');
+    if (!templateReviewSection) {
+        console.error('Template review section not found');
+        return;
+    }
+    
+    // Extract variables from template content
+    const variables = extractTemplateVariables(templateContent);
+    console.log('Extracted variables:', variables);
+    
+    // Update template analysis
+    updateTemplateAnalysis(templateContent, variables);
+    
+    // Update placeholders found
+    updatePlaceholdersFound(variables);
+    
+    // Create placeholder input fields
+    createPlaceholderInputs(variables);
+    
+    // Update original template text
+    updateOriginalTemplateText(templateContent);
+    
+    // Show the section
+    templateReviewSection.style.display = 'block';
+    
+    // Show placeholder notice
+    const placeholderNotice = document.getElementById('placeholder-notice');
+    if (placeholderNotice) {
+        placeholderNotice.style.display = 'block';
+    }
+    
+    // Update step indicator to show step 2 is active
+    updateStepIndicator(2);
+}
+
+// Update template analysis
+function updateTemplateAnalysis(templateContent, variables) {
+    const analysisDiv = document.getElementById('template-analysis');
+    if (!analysisDiv) return;
+    
+    const wordCount = templateContent.trim().split(/\s+/).length;
+    const charCount = templateContent.length;
+    const variableCount = variables.length;
+    const hasHtml = /<[^>]*>/.test(templateContent);
+    
+    const analysis = '<div class="row">' +
+        '<div class="col-6">' +
+        '<div class="text-center p-2 bg-light rounded">' +
+        '<div class="h4 text-primary mb-0">' + wordCount + '</div>' +
+        '<small class="text-muted">Words</small>' +
+        '</div>' +
+        '</div>' +
+        '<div class="col-6">' +
+        '<div class="text-center p-2 bg-light rounded">' +
+        '<div class="h4 text-primary mb-0">' + charCount + '</div>' +
+        '<small class="text-muted">Characters</small>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '<div class="row mt-2">' +
+        '<div class="col-6">' +
+        '<div class="text-center p-2 bg-light rounded">' +
+        '<div class="h4 text-warning mb-0">' + variableCount + '</div>' +
+        '<small class="text-muted">Variables</small>' +
+        '</div>' +
+        '</div>' +
+        '<div class="col-6">' +
+        '<div class="text-center p-2 bg-light rounded">' +
+        '<div class="h4 text-info mb-0">' + (hasHtml ? 'Yes' : 'No') + '</div>' +
+        '<small class="text-muted">HTML Content</small>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+    
+    analysisDiv.innerHTML = analysis;
+}
+
+// Update placeholders found
+function updatePlaceholdersFound(variables) {
+    const placeholdersDiv = document.getElementById('placeholders-found');
+    if (!placeholdersDiv) return;
+    
+    if (variables.length === 0) {
+        placeholdersDiv.innerHTML = '<p class="text-muted">No placeholders found in this template.</p>';
+        return;
+    }
+    
+    const placeholdersHtml = variables.map(variable => {
+        const description = getVariableDescription(variable);
+        return '<code class="badge bg-primary me-2 mb-1" title="' + description + '">{{' + variable + '}}</code>';
+    }).join('');
+    
+    placeholdersDiv.innerHTML = '<p class="text-muted mb-2">Found ' + variables.length + ' placeholder(s):</p><div>' + placeholdersHtml + '</div>';
+}
+
+// Create placeholder input fields
+function createPlaceholderInputs(variables) {
+    console.log('createPlaceholderInputs called with variables:', variables);
+    
+    const inputsDiv = document.getElementById('placeholder-inputs');
+    if (!inputsDiv) {
+        console.error('Placeholder inputs div not found');
+        return;
+    }
+    
+    if (variables.length === 0) {
+        inputsDiv.innerHTML = '<p class="text-muted">No placeholders to test.</p>';
+        return;
+    }
+    
+    const inputsHtml = variables.map(variable => {
+        const sampleValue = getSampleValue(variable);
+        const description = getVariableDescription(variable);
+        
+        const inputHtml = '<div class="row mb-3">' +
+            '<div class="col-md-4">' +
+            '<label class="form-label">' +
+            '<code>{{' + variable + '}}</code>' +
+            '<small class="text-muted d-block">' + description + '</small>' +
+            '</label>' +
+            '</div>' +
+            '<div class="col-md-8">' +
+            '<input type="text" class="form-control" ' +
+            'id="placeholder-' + variable + '" ' +
+            'placeholder="Enter value for ' + variable + '" ' +
+            'value="' + sampleValue + '" ' +
+            'data-variable="{{' + variable + '}}">' +
+            '</div>' +
+            '</div>';
+        
+        console.log('Created input HTML for variable:', variable, 'with data-variable:', '{{' + variable + '}}');
+        return inputHtml;
+    }).join('');
+    
+    inputsDiv.innerHTML = inputsHtml;
+    console.log('Placeholder inputs created successfully');
+}
+
+// Update original template text
+function updateOriginalTemplateText(templateContent) {
+    const originalTextDiv = document.getElementById('original-template-text');
+    if (!originalTextDiv) return;
+    
+    // Highlight variables in the original content
+    const highlightedContent = templateContent.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>');
+    originalTextDiv.innerHTML = highlightedContent.replace(/\n/g, '<br>');
+}
+
+// Generate preview with custom placeholder values
+function generatePreviewWithPlaceholders() {
+    const templateContent = campaignData.content;
+    if (!templateContent) {
+        alert('No template content available for preview.');
+        return;
+    }
+    
+    const variables = extractTemplateVariables(templateContent);
+    if (variables.length === 0) {
+        alert('No variables found in template to preview.');
+        return;
+    }
+    
+    let previewContent = templateContent;
+    
+    // Replace variables with user input values
+    variables.forEach(variable => {
+        const inputElement = document.getElementById('placeholder-' + variable);
+        if (inputElement) {
+            const value = inputElement.value.trim() || '[Empty]';
+            const regex = new RegExp('\\{\\{' + variable + '\\}\\}', 'g');
+            previewContent = previewContent.replace(regex, value);
+        }
+    });
+    
+    // Update custom preview tab
+    const customPreviewDiv = document.getElementById('custom-preview-text');
+    if (customPreviewDiv) {
+        customPreviewDiv.innerHTML = previewContent.replace(/\n/g, '<br>');
+    }
+    
+    // Update HTML preview tab
+    const htmlPreviewDiv = document.getElementById('html-preview-text');
+    if (htmlPreviewDiv) {
+        htmlPreviewDiv.innerHTML = previewContent;
+    }
+    
+    // Switch to custom preview tab
+    const customPreviewTab = document.getElementById('custom-preview-tab');
+    const customPreviewTabInstance = new bootstrap.Tab(customPreviewTab);
+    customPreviewTabInstance.show();
+    
+    // Store custom placeholder values in campaign data for later use
+    updateCustomPlaceholdersInCampaignData();
+    
+    // Show success message
+    const button = document.querySelector('button[onclick="generatePreviewWithPlaceholders()"]');
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check me-1"></i>Preview Generated!';
+        button.classList.remove('btn-primary');
+        button.classList.add('btn-success');
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-primary');
+        }, 2000);
+    }
+}
+
+// Reset placeholder values to sample data
+function resetPlaceholderValues() {
+    const variables = campaignData.template_variables || [];
+    
+    variables.forEach(variable => {
+        const inputElement = document.getElementById('placeholder-' + variable);
+        if (inputElement) {
+            const sampleValue = getSampleValue(variable);
+            inputElement.value = sampleValue;
+        }
+    });
+    
+    // Show success message
+    const button = document.querySelector('button[onclick="resetPlaceholderValues()"]');
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check me-1"></i>Values Reset!';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    }
+}
+
+// Update custom placeholders in campaign data
+function updateCustomPlaceholdersInCampaignData() {
+    const customPlaceholders = {};
+    const placeholderInputs = document.querySelectorAll('#placeholder-inputs input[data-variable]');
+    
+    placeholderInputs.forEach(input => {
+        const variable = input.getAttribute('data-variable');
+        const value = input.value.trim();
+        if (value) {
+            // Extract variable name from {{variable}} format
+            const varName = variable.replace(/\{\{|\}\}/g, '');
+            customPlaceholders[varName] = value;
+            console.log('Found placeholder:', varName, 'with value:', value);
+        }
+    });
+    
+    // Store in campaign data
+    campaignData.custom_placeholders = customPlaceholders;
+    console.log('Custom placeholders updated in campaign data:', customPlaceholders);
+    
+    // Update the summary display
+    updatePlaceholdersSummary(customPlaceholders);
+}
+
+// Update placeholders summary display
+function updatePlaceholdersSummary(customPlaceholders) {
+    const summaryDiv = document.getElementById('custom-placeholders-summary');
+    const summaryList = document.getElementById('placeholders-summary-list');
+    
+    if (!summaryDiv || !summaryList) return;
+    
+    if (Object.keys(customPlaceholders).length === 0) {
+        summaryDiv.style.display = 'none';
+        return;
+    }
+    
+    // Show summary
+    summaryDiv.style.display = 'block';
+    
+    // Create summary list
+    const summaryHtml = Object.keys(customPlaceholders).map(placeholder => {
+        const value = customPlaceholders[placeholder];
+        return '<span class="badge bg-primary me-2 mb-1">' + 
+               '&#123;&#123;' + placeholder + ': "' + value + '"&#125;&#125;</span>';
+    }).join('');
+    
+    summaryList.innerHTML = summaryHtml;
+}
+
+// Update step indicator
+function updateStepIndicator(stepNumber) {
+    // Reset all steps
+    for (let i = 1; i <= 3; i++) {
+        const stepIndicator = document.getElementById('step-' + i + '-indicator');
+        const stepCircle = stepIndicator.querySelector('.step-circle');
+        const stepLabel = stepIndicator.querySelector('h6');
+        
+        stepIndicator.classList.remove('active', 'completed');
+        stepCircle.classList.remove('active', 'completed');
+        stepLabel.classList.remove('active', 'completed');
+    }
+    
+    // Set current step as active
+    const currentStep = document.getElementById('step-' + stepNumber + '-indicator');
+    const currentCircle = currentStep.querySelector('.step-circle');
+    const currentLabel = currentStep.querySelector('h6');
+    
+    currentStep.classList.add('active');
+    currentCircle.classList.add('active');
+    currentLabel.classList.add('active');
+    
+    // Set previous steps as completed
+    for (let i = 1; i < stepNumber; i++) {
+        const prevStep = document.getElementById('step-' + i + '-indicator');
+        const prevCircle = prevStep.querySelector('.step-circle');
+        const prevLabel = prevStep.querySelector('h6');
+        
+        prevStep.classList.add('completed');
+        prevCircle.classList.add('completed');
+        prevLabel.classList.add('completed');
+    }
+}
+
+// Hide template preview
+function hideTemplatePreview() {
+    const templatePreviewSection = document.getElementById('template-preview-section');
+    if (templatePreviewSection) {
+        templatePreviewSection.style.display = 'none';
+    }
+    
+    // Hide template review section
+    const templateReviewSection = document.getElementById('template-review-section');
+    if (templateReviewSection) {
+        templateReviewSection.style.display = 'none';
+    }
+    
+    // Reset step indicator to step 1
+    updateStepIndicator(1);
+    
+    // Clear template info
+    const templateNameElement = document.getElementById('template-name');
+    const templateContentElement = document.getElementById('template-content');
+    const templateSubjectElement = document.getElementById('template-subject');
+    
+    if (templateNameElement) templateNameElement.textContent = '';
+    if (templateContentElement) templateContentElement.textContent = '';
+    if (templateSubjectElement) templateSubjectElement.textContent = '';
+    
+    // Clear variables list
+    const variablesList = document.getElementById('template-variables-list');
+    if (variablesList) variablesList.innerHTML = '';
+    
+    // Clear variable inputs
+    const variableInputs = document.getElementById('variable-inputs');
+    if (variableInputs) variableInputs.innerHTML = '';
+    
+    // Clear preview content
+    const samplePreview = document.getElementById('sample-preview-content');
+    if (samplePreview) samplePreview.innerHTML = '';
+    
+    // Clear MSG91 preview
+    const msg91Preview = document.getElementById('msg91-preview-content');
+    if (msg91Preview) msg91Preview.innerHTML = '';
+}
+
+// Load sample preview with variables replaced
+function loadSamplePreview() {
+    const samplePreview = document.getElementById('sample-preview-content');
+    
+    if (!samplePreview) return;
+    
+    // Get the original content from campaign data
+    const originalContent = campaignData.content || '';
+    if (!originalContent) {
+        samplePreview.innerHTML = '<p class="text-muted">No template content available for preview.</p>';
+        return;
+    }
+    
+    // Sample customer data for preview - use actual variables from API
+    const sampleData = {};
+    if (campaignData.template_variables && campaignData.template_variables.length > 0) {
+        campaignData.template_variables.forEach(variable => {
+            sampleData['{{' + variable + '}}'] = getSampleValue(variable);
+        });
+    } else {
+        // Fallback to common variables
+        sampleData['{{name}}'] = 'John Doe';
+        sampleData['{{email}}'] = 'john.doe@example.com';
+        sampleData['{{phone}}'] = '+1-555-0123';
+        sampleData['{{company_name}}'] = 'TechCorp Inc.';
+        sampleData['{{otp}}'] = '123456';
+    }
+    
+    console.log('Sample data for preview:', sampleData);
+    
+    // Replace variables with sample data in the original HTML content
+    let previewHtml = originalContent;
+    Object.keys(sampleData).forEach(variable => {
+        const regex = new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        previewHtml = previewHtml.replace(regex, sampleData[variable]);
+    });
+    
+    // Show the HTML preview with variables replaced
+    samplePreview.innerHTML = previewHtml;
+    
+    // Also show a text version for better readability
+    const textPreview = document.getElementById('sample-preview-text');
+    if (textPreview) {
+        // Create a temporary div to extract text content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = previewHtml;
+        let textVersion = tempDiv.textContent || tempDiv.innerText || '';
+        
+        // Clean up the text (remove extra whitespace, etc.)
+        textVersion = textVersion
+            .replace(/\s+/g, ' ')
+            .replace(/\n\s*\n/g, '\n')
+            .trim();
+        
+        // Format the text with line breaks
+        const formattedText = textVersion
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => '<p class="mb-1">' + line + '</p>')
+            .join('');
+        
+        textPreview.innerHTML = formattedText || '<p class="text-muted">No text content available.</p>';
+    }
+    
+    // Show success message
+    const button = document.querySelector('button[onclick="loadSamplePreview()"]');
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check me-1"></i>Preview Loaded';
+        button.classList.remove('btn-outline-primary');
+        button.classList.add('btn-success');
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-primary');
+        }, 2000);
+    }
+}
+
+// Extract variables from template content
+function extractTemplateVariables(content) {
+    const variableRegex = /\{\{(\w+)\}\}/g;
+    const variables = [];
+    let match;
+    
+    while ((match = variableRegex.exec(content)) !== null) {
+        if (!variables.includes(match[1])) {
+            variables.push(match[1]);
+        }
+    }
+    
+    return variables;
+}
+
+// Create variable input fields
+function createVariableInputs(variables) {
+    const variableInputs = document.getElementById('variable-inputs');
+    const variablesList = document.getElementById('template-variables-list');
+    
+    if (!variableInputs || !variablesList) return;
+    
+    console.log('Creating variable inputs for:', variables);
+    
+    if (!variables || variables.length === 0) {
+        variablesList.innerHTML = '<p class="text-muted">No variables found in this template.</p>';
+        variableInputs.innerHTML = '<p class="text-muted">No variables to test.</p>';
+        return;
+    }
+    
+    // Display variables list with descriptions
+    const variablesHtml = variables.map(variable => {
+        const description = getVariableDescription(variable);
+        return '<code class="badge bg-primary me-2 mb-1" title="' + description + '">{{' + variable + '}}</code>';
+    }).join('');
+    variablesList.innerHTML = variablesHtml;
+    
+    // Create input fields with sample values
+    const inputsHtml = variables.map(variable => {
+        const sampleValue = getSampleValue(variable);
+        const description = getVariableDescription(variable);
+        
+        return '<div class="row mb-2">' +
+            '<div class="col-md-4">' +
+            '<label class="form-label"><code>{{' + variable + '}}</code></label>' +
+            '<small class="text-muted d-block">' + description + '</small>' +
+            '</div>' +
+            '<div class="col-md-8">' +
+            '<input type="text" class="form-control form-control-sm" ' +
+            'id="var-' + variable + '" ' +
+            'placeholder="Enter value for ' + variable + '" ' +
+            'value="' + sampleValue + '" ' +
+            'data-variable="{{' + variable + '}}">' +
+            '</div>' +
+            '</div>';
+    }).join('');
+    
+    variableInputs.innerHTML = inputsHtml;
+}
+
+// Get variable description based on common variable names
+function getVariableDescription(variable) {
+    const descriptions = {
+        'name': 'Customer full name',
+        'first_name': 'Customer first name',
+        'last_name': 'Customer last name',
+        'email': 'Customer email address',
+        'phone': 'Customer phone number',
+        'company': 'Company name',
+        'company_name': 'Company name',
+        'otp': 'One-time password/verification code',
+        'verification_code': 'Verification code',
+        'reset_link': 'Password reset link',
+        'login_url': 'Login page URL',
+        'website_url': 'Website URL',
+        'support_email': 'Support email address',
+        'user_name': 'Username',
+        'user_email': 'User email',
+        'address': 'Customer address',
+        'job_link': 'Job application link',
+        'position': 'Job position title',
+        'salary': 'Job salary information',
+        'location': 'Job location'
+    };
+    
+    return descriptions[variable] || 'Template variable';
+}
+
+// Get sample value for variables
+function getSampleValue(variable) {
+    const sampleValues = {
+        'name': 'John Doe',
+        'first_name': 'John',
+        'last_name': 'Doe',
+        'email': 'john.doe@example.com',
+        'phone': '+1-555-0123',
+        'company': 'TechCorp Inc.',
+        'company_name': 'TechCorp Inc.',
+        'otp': '123456',
+        'verification_code': 'ABC123',
+        'reset_link': 'https://example.com/reset-password?token=abc123',
+        'login_url': 'https://example.com/login',
+        'website_url': 'https://example.com',
+        'support_email': 'support@example.com',
+        'user_name': 'johndoe',
+        'user_email': 'john.doe@example.com',
+        'address': '123 Main Street, City, State 12345',
+        'job_link': 'https://example.com/jobs/software-engineer',
+        'position': 'Software Engineer',
+        'salary': '$80,000 - $120,000',
+        'location': 'San Francisco, CA'
+    };
+    
+    return sampleValues[variable] || 'Sample value';
+}
+
+// Show notification messages
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-' + (type === 'error' ? 'danger' : type) + ' alert-dismissible fade show position-fixed';
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    
+    notification.innerHTML = 
+        message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Load MSG91 preview image
+function loadMSG91Preview() {
+    const msg91PreviewContent = document.getElementById('msg91-preview-content');
+    if (!msg91PreviewContent) return;
+    
+    if (campaignData && campaignData.preview_link) {
+        // Show loading state
+        msg91PreviewContent.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2">Loading MSG91 preview...</p></div>';
+        
+        // Create image element
+        const img = document.createElement('img');
+        img.src = campaignData.preview_link;
+        img.className = 'img-fluid border rounded shadow-sm';
+        img.style.maxWidth = '100%';
+        img.alt = 'MSG91 Template Preview';
+        
+        // Handle image load
+        img.onload = function() {
+            msg91PreviewContent.innerHTML = '';
+            msg91PreviewContent.appendChild(img);
+            
+            // Add download button
+            const downloadBtn = document.createElement('div');
+            downloadBtn.className = 'mt-3';
+            downloadBtn.innerHTML = '<a href="' + campaignData.preview_link + '" target="_blank" class="btn btn-outline-primary btn-sm"><i class="fas fa-external-link-alt me-1"></i>Open Full Size</a>';
+            msg91PreviewContent.appendChild(downloadBtn);
+        };
+        
+        // Handle image error
+        img.onerror = function() {
+            msg91PreviewContent.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load MSG91 preview image. The preview link may be expired or inaccessible.</div>';
+        };
+    } else {
+        msg91PreviewContent.innerHTML = '<div class="text-muted"><i class="fas fa-info-circle me-2"></i>No MSG91 preview available for this template.</div>';
+    }
+}
+
+// Preview with custom variable values
+function previewWithCustomVariables() {
+    const samplePreview = document.getElementById('sample-preview-content');
+    
+    if (!samplePreview) return;
+    
+    // Get the original content from campaign data
+    const originalContent = campaignData.content || '';
+    if (!originalContent) {
+        samplePreview.innerHTML = '<p class="text-muted">No template content available for preview.</p>';
+        return;
+    }
+    
+    // Get custom values from input fields
+    const customData = {};
+    const variableInputs = document.querySelectorAll('#variable-inputs input[data-variable]');
+    
+    variableInputs.forEach(input => {
+        const variable = input.getAttribute('data-variable');
+        const value = input.value.trim() || '[' + variable + ']';
+        customData[variable] = value;
+    });
+    
+    console.log('Custom data for preview:', customData);
+    
+    // Replace variables with custom values in the original HTML content
+    let previewHtml = originalContent;
+    Object.keys(customData).forEach(variable => {
+        const regex = new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        previewHtml = previewHtml.replace(regex, customData[variable]);
+    });
+    
+    // Show the HTML preview with custom variables replaced
+    samplePreview.innerHTML = previewHtml;
+    
+    // Show success message
+    const button = document.querySelector('button[onclick="previewWithCustomVariables()"]');
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check me-1"></i>Custom Preview Loaded';
+        button.classList.remove('btn-primary');
+        button.classList.add('btn-success');
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-primary');
+        }, 2000);
+    }
 }
 
 // Step 1 Next button click
@@ -430,10 +1674,25 @@ document.getElementById('step1-next').addEventListener('click', function() {
     campaignData = {
         channel: document.getElementById('{{ form.channel.id_for_label }}').value,
         provider: document.getElementById('{{ form.provider.id_for_label }}').value,
-        subject: document.getElementById('{{ form.subject.id_for_label }}').value,
-        content: document.getElementById('{{ form.content.id_for_label }}').value,
-        vendor_template: document.getElementById('{{ form.vendor_template.id_for_label }}').value
+        template: document.getElementById('{{ form.template.id_for_label }}').value
     };
+    
+    // Collect custom placeholder values
+    const customPlaceholders = {};
+    const placeholderInputs = document.querySelectorAll('#placeholder-inputs input[data-variable]');
+    placeholderInputs.forEach(input => {
+        const variable = input.getAttribute('data-variable');
+        const value = input.value.trim();
+        if (value) {
+            // Extract variable name from {{variable}} format
+            const varName = variable.replace(/\{\{|\}\}/g, '');
+            customPlaceholders[varName] = value;
+        }
+    });
+    
+    // Store custom placeholders in campaign data
+    campaignData.custom_placeholders = customPlaceholders;
+    console.log('Custom placeholders collected:', customPlaceholders);
     
     // Validate required fields
     if (!campaignData.channel || !campaignData.provider) {
@@ -441,51 +1700,140 @@ document.getElementById('step1-next').addEventListener('click', function() {
         return;
     }
     
-    if (campaignData.channel === 'email') {
-        // For email: subject and content are required
-        if (!campaignData.subject) {
-            alert('Subject is required for email campaigns.');
-            return;
-        }
-        if (!campaignData.content) {
-            alert('Message content is required for email campaigns.');
-            return;
-        }
-    } else {
-        // For SMS/WhatsApp: vendor template is required instead of content
-        if (!campaignData.vendor_template) {
-            alert('Please select a vendor template for SMS/WhatsApp campaigns.');
-            return;
+    // Template is required for all campaigns
+    if (!campaignData.template) {
+        alert('Please select a template for your campaign.');
+        return;
+    }
+    
+    // Load template content for all channels
+    const templateField = document.getElementById('{{ form.template.id_for_label }}');
+    const selectedOption = templateField.options[templateField.selectedIndex];
+    if (selectedOption && selectedOption.dataset.content) {
+        campaignData.content = selectedOption.dataset.content;
+        campaignData.template_name = selectedOption.textContent;
+        
+        // Extract subject if available
+        if (selectedOption.dataset.subject) {
+            campaignData.template_subject = selectedOption.dataset.subject;
         }
     }
     
-    // If vendor template is selected, load its content
-    if (campaignData.vendor_template && campaignData.channel !== 'email') {
-        const vendorTemplateField = document.getElementById('{{ form.vendor_template.id_for_label }}');
-        const selectedOption = vendorTemplateField.options[vendorTemplateField.selectedIndex];
-        if (selectedOption && selectedOption.dataset.content) {
-            campaignData.content = selectedOption.dataset.content;
-            document.getElementById('{{ form.content.id_for_label }}').value = campaignData.content;
-        }
-    }
-    
-    // Populate step 2 fields
-    document.getElementById('message-subject').value = campaignData.subject || '';
-    document.getElementById('message-content').value = campaignData.content || '';
-    
-    // Show/hide fields based on channel
-    const subjectField = document.getElementById('step2-subject-field');
-    const contentField = document.getElementById('step2-content-field');
+    // Show/hide fields based on channel and template selection
     const templateInfo = document.getElementById('template-info');
     
-    if (campaignData.channel === 'email') {
-        subjectField.style.display = 'block';
-        contentField.style.display = 'block';
-        templateInfo.style.display = 'none';
-    } else {
-        subjectField.style.display = 'none';
-        contentField.style.display = 'none';
+    // Always show template info since we're using templates only
+    if (templateInfo) {
         templateInfo.style.display = 'block';
+        
+        // Update template info display
+        const templateName = document.getElementById('template-name');
+        const templateSubject = document.getElementById('template-subject');
+        const templateContent = document.getElementById('template-content');
+        if (templateName && templateSubject && templateContent) {
+            templateName.textContent = campaignData.template_name || 'Unknown Template';
+            
+            // Extract subject from template data
+            if (campaignData.template_subject) {
+                templateSubject.textContent = campaignData.template_subject;
+            } else if (campaignData.content) {
+                // Try to extract subject from content (for legacy templates)
+                const subjectMatch = campaignData.content.match(/Subject:\s*(.*?)\s*$/i);
+                if (subjectMatch && subjectMatch[1]) {
+                    templateSubject.textContent = subjectMatch[1].trim();
+                } else {
+                    templateSubject.textContent = 'No subject specified';
+                }
+            } else {
+                templateSubject.textContent = 'No subject specified';
+            }
+            
+            // Update template content display
+            const templateContent = document.getElementById('template-content');
+            if (templateContent) {
+                // Format template content to show variables clearly
+                const content = campaignData.content || 'No content available';
+                if (content && content !== 'No content available') {
+                    // Show HTML content in HTML preview tab
+                    const htmlPreviewContent = document.getElementById('html-preview-content-inner');
+                    if (htmlPreviewContent) {
+                        // Highlight variables in the HTML content
+                        let htmlContent = content;
+                        if (campaignData.template_variables && campaignData.template_variables.length > 0) {
+                            campaignData.template_variables.forEach(variable => {
+                                const variablePattern = '{{' + variable + '}}';
+                                const highlightedVariable = '<span class="badge bg-warning text-dark">' + variablePattern + '</span>';
+                                htmlContent = htmlContent.replace(new RegExp(variablePattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), highlightedVariable);
+                            });
+                        }
+                        htmlPreviewContent.innerHTML = htmlContent;
+                    }
+                    
+                    // Show HTML content in template content area with variables highlighted
+                    let templateHtmlContent = content;
+                    
+                    // Highlight variables in the HTML content
+                    if (campaignData.template_variables && campaignData.template_variables.length > 0) {
+                        campaignData.template_variables.forEach(variable => {
+                            const variablePattern = '{{' + variable + '}}';
+                            const highlightedVariable = '<span class="badge bg-warning text-dark">' + variablePattern + '</span>';
+                            templateHtmlContent = templateHtmlContent.replace(new RegExp(variablePattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), highlightedVariable);
+                        });
+                    }
+                    
+                    // Show the HTML content with variables highlighted
+                    templateContent.innerHTML = templateHtmlContent;
+                    
+                    // Also show a text version for better readability
+                    const textContent = document.getElementById('template-content-text');
+                    if (textContent) {
+                        // Create a temporary div to extract text content
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = content;
+                        let textVersion = tempDiv.textContent || tempDiv.innerText || '';
+                        
+                        // Highlight variables in the text version
+                        if (campaignData.template_variables && campaignData.template_variables.length > 0) {
+                            campaignData.template_variables.forEach(variable => {
+                                const variablePattern = '{{' + variable + '}}';
+                                const highlightedVariable = '<span class="badge bg-warning text-dark">' + variablePattern + '</span>';
+                                textVersion = textVersion.replace(new RegExp(variablePattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), highlightedVariable);
+                            });
+                        }
+                        
+                        textContent.innerHTML = textVersion;
+                    }
+                } else {
+                    templateContent.innerHTML = '<p class="text-muted">No template content available.</p>';
+                }
+            }
+            
+            // Extract variables and create input fields
+            let variables = [];
+            if (campaignData && campaignData.template_variables && campaignData.template_variables.length > 0) {
+                // Use variables from MSG91 API response
+                variables = campaignData.template_variables;
+                console.log('Using variables from MSG91 API:', variables);
+            } else {
+                // Fallback to parsing content if no API variables
+                variables = extractTemplateVariables(campaignData.content || '');
+                console.log('Using variables from content parsing:', variables);
+            }
+            
+            // Ensure variables are unique and properly formatted
+            variables = [...new Set(variables)].filter(v => v && typeof v === 'string');
+            console.log('Final variables list:', variables);
+            
+            createVariableInputs(variables);
+            
+            // Update MSG91 preview if available
+            if (campaignData && campaignData.preview_link) {
+                const msg91PreviewContent = document.getElementById('msg91-preview-content');
+                if (msg91PreviewContent) {
+                    msg91PreviewContent.innerHTML = '<div class="text-center"><i class="fas fa-image me-2"></i>Click "MSG91 Preview" tab to view the visual preview</div>';
+                }
+            }
+        }
     }
     
     showStep(2);
@@ -493,12 +1841,31 @@ document.getElementById('step1-next').addEventListener('click', function() {
 
 // Go to step 3 from step 2
 function goToStep3() {
-    // Update campaign data with any changes from step 2
-    if (campaignData.channel === 'email') {
-        campaignData.subject = document.getElementById('message-subject').value;
-        campaignData.content = document.getElementById('message-content').value;
+    console.log('goToStep3 called with campaignData:', campaignData);
+    
+    // Ensure campaignData is initialized
+    if (!campaignData) {
+        console.error('campaignData is not initialized');
+        alert('Error: Campaign data not initialized. Please refresh the page and try again.');
+        return;
     }
-    // For SMS/WhatsApp, content comes from vendor template and is not editable
+    
+    // Update campaign data with template content
+    if (campaignData.template) {
+        // Use vendor template content
+        const templateField = document.getElementById('{{ form.template.id_for_label }}');
+        const selectedOption = templateField.options[templateField.selectedIndex];
+        if (selectedOption && selectedOption.dataset.content) {
+            campaignData.content = selectedOption.dataset.content;
+            console.log('Updated campaignData.content from template:', campaignData.content);
+        } else {
+            console.warn('No content found in template dataset');
+        }
+    } else {
+        console.warn('No template selected in campaignData');
+    }
+    
+    console.log('campaignData before going to step 3:', campaignData);
     
     showStep(3);
 }
@@ -522,7 +1889,7 @@ function showStep(step) {
     
     // Load data for specific steps
     if (step === 2) {
-        loadVendorTemplates();
+        loadVendorTemplatesForStep1();
         updateMessagePreview();
     } else if (step === 3) {
         updateReview();
@@ -531,117 +1898,325 @@ function showStep(step) {
 
 // Message preview
 function updateMessagePreview() {
-    const content = document.getElementById('message-content').value;
-    const preview = content.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>');
-    document.getElementById('message-preview').innerHTML = preview || '<p class="text-muted">Your message preview will appear here...</p>';
+    const messageContent = document.getElementById('message-content');
+    const messagePreview = document.getElementById('message-preview');
+    
+    if (!messageContent || !messagePreview) return;
+    
+    const content = messageContent.value;
+    const preview = content ? content.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>') : '';
+    messagePreview.innerHTML = preview || '<p class="text-muted">Your message preview will appear here...</p>';
 }
 
-// Load vendor templates dynamically for non-email channels
-function loadVendorTemplates() {
-    const card = document.getElementById('vendor-template-card');
-    const templateSelect = document.getElementById('template-selector');
-    templateSelect.innerHTML = '';
-
-    if (selectedChannel === 'email') {
-        card.style.display = 'none';
-        return;
+// Load complete template details from MSG91 API
+async function loadMSG91TemplateDetails(templateName) {
+    try {
+        console.log('Loading MSG91 template details for:', templateName);
+        
+        const response = await fetch('/outreach/msg91-template-details/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                template_name: templateName
+            })
+        });
+        
+        console.log('MSG91 API response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('MSG91 API response data:', data);
+            
+            if (data.success) {
+                // Update the template data with complete details
+                const selectedOption = document.getElementById('{{ form.template.id_for_label }}').options[document.getElementById('{{ form.template.id_for_label }}').selectedIndex];
+                selectedOption.dataset.content = data.template.body || data.template.content;
+                selectedOption.dataset.subject = data.template.subject;
+                selectedOption.dataset.previewLink = data.template.preview_link || '';
+                selectedOption.dataset.variables = JSON.stringify(data.template.variables || []);
+                
+                // Update campaign data
+                if (campaignData) {
+                    campaignData.content = data.template.body || data.template.content;
+                    campaignData.template_subject = data.template.subject;
+                    campaignData.template_variables = data.template.variables || [];
+                    campaignData.preview_link = data.template.preview_link || '';
+                }
+                
+                // Show success message
+                showNotification('Template details loaded successfully!', 'success');
+            } else {
+                console.error('MSG91 API error:', data.error);
+                showNotification('Failed to load template details', 'error');
+            }
+        } else {
+            console.error('HTTP error loading MSG91 template details:', response.status, response.statusText);
+            showNotification('Error loading template details', 'error');
+        }
+    } catch (error) {
+        console.error('Error fetching MSG91 template details:', error);
+        showNotification('Error loading template details', 'error');
     }
+}
 
-    card.style.display = 'block';
-    templateSelect.innerHTML = '<option value="">Select an approved vendor template...</option>';
-
-    const url = new URL('{% url "outreach:get_vendor_templates" %}', window.location.origin);
-    url.searchParams.set('channel', selectedChannel);
-    url.searchParams.set('provider', document.getElementById('{{ form.provider.id_for_label }}').value);
-
-    fetch(url.toString(), { credentials: 'same-origin' })
-        .then(res => res.json())
-        .then(data => {
-            (data.templates || []).forEach(t => {
-                const opt = document.createElement('option');
-                opt.value = t.id;
-                opt.textContent = t.name;
-                opt.dataset.content = t.content;
-                templateSelect.appendChild(opt);
-            });
-        })
-        .catch(() => {});
+// Get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 
 // Load template content
 function loadTemplate() {
-    const templateId = document.getElementById('template-selector').value;
+    const templateSelector = document.getElementById('template-selector');
+    if (!templateSelector) return;
+    
+    const templateId = templateSelector.value;
     if (!templateId) return;
-    const option = document.querySelector(`#template-selector option[value="${templateId}"]`);
+    
+    const option = templateSelector.querySelector('option[value="' + templateId + '"]');
     const content = option ? option.dataset.content : '';
+    
     if (content) {
-        document.getElementById('message-content').value = content;
+        // Update the message content field
+        const messageContent = document.getElementById('message-content');
+        if (messageContent) {
+            messageContent.value = content;
+        }
+        
+        // Update campaign data
+        if (campaignData) {
+            campaignData.content = content;
+        }
+        
+        // Update preview
         updateMessagePreview();
+        
+        // For email campaigns, also update the template field in step 1
+        if (selectedChannel === 'email') {
+            const templateField = document.getElementById('{{ form.template.id_for_label }}');
+            if (templateField) {
+                templateField.value = templateId;
+            }
+        }
     }
 }
 
 // Update review section
 function updateReview() {
+    console.log('updateReview called with campaignData:', campaignData);
+    
     // Generate campaign name
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
     const channelDisplay = campaignData.channel ? campaignData.channel.toUpperCase() : '';
-    const campaignName = `${channelDisplay}_Campaign_${timestamp}`;
+    const campaignName = channelDisplay + '_Campaign_' + timestamp;
     
-    document.getElementById('review-name').textContent = campaignName;
-    document.getElementById('review-channel').textContent = campaignData.channel ? campaignData.channel.toUpperCase() : '-';
-    document.getElementById('review-provider').textContent = campaignData.provider ? campaignData.provider.replace('-', ' ').toUpperCase() : '-';
-    document.getElementById('review-subject').textContent = campaignData.subject || 'N/A';
-    document.getElementById('review-customers').textContent = '{{ customers_count }} customers';
+    const reviewName = document.getElementById('review-name');
+    const reviewChannel = document.getElementById('review-channel');
+    const reviewProvider = document.getElementById('review-provider');
+    const reviewTemplate = document.getElementById('review-template');
     
-    const content = document.getElementById('message-content').value || campaignData.content;
-    const preview = content.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary">[$1]</span>');
-    document.getElementById('review-message').innerHTML = preview || '<p class="text-muted">No message content</p>';
+    // Update review fields if they exist
+    if (reviewName) reviewName.textContent = campaignName;
+    if (reviewChannel) reviewChannel.textContent = campaignData.channel || 'No channel selected';
+    if (reviewProvider) reviewProvider.textContent = campaignData.provider || 'No provider selected';
+    if (reviewTemplate) reviewTemplate.textContent = campaignData.template_name || 'No template selected';
+    
+    const reviewSubject = document.getElementById('review-subject');
+    if (reviewSubject) {
+        reviewSubject.textContent = campaignData.template_subject || 'No subject specified';
+    }
+    
+    const reviewCustomers = document.getElementById('review-customers');
+    if (reviewCustomers) reviewCustomers.textContent = '{{ customers_count }} customers';
+    
+    const reviewMessage = document.getElementById('review-message');
+    if (reviewMessage) {
+        const content = campaignData.content || '';
+        console.log('Review message content:', content);
+        
+        if (content) {
+            try {
+                // Highlight variables in the review message
+                const preview = content
+                    .replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-warning text-dark me-1">$&</span>')
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                    .map(line => '<p class="mb-1">' + line + '</p>')
+                    .join('');
+                
+                reviewMessage.innerHTML = preview;
+                console.log('Review message preview updated successfully');
+            } catch (error) {
+                console.error('Error updating review message preview:', error);
+                reviewMessage.innerHTML = '<p class="text-muted">Error displaying message preview</p>';
+            }
+        } else {
+            reviewMessage.innerHTML = '<p class="text-muted">No message content</p>';
+        }
+    } else {
+        console.warn('Review message element not found');
+    }
 }
 
 // Launch campaign
 function launchCampaign() {
     if (confirm('Are you sure you want to launch this campaign? This action cannot be undone.')) {
-        // Submit the form data
-        const formData = new FormData();
-        formData.append('channel', campaignData.channel);
-        formData.append('provider', campaignData.provider);
-        formData.append('subject', campaignData.subject || '');
-        formData.append('content', campaignData.content);
-        formData.append('vendor_template', campaignData.vendor_template || '');
+        // Update the form fields with campaign data
+        const form = document.getElementById('campaign-form');
+        if (!form) {
+            alert('Campaign form not found. Please refresh the page and try again.');
+            return;
+        }
         
-        fetch('{% url "outreach:create_campaign" %}', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Campaign launched successfully!');
-                window.location.href = '{% url "outreach:campaign_overview" %}';
-            } else {
-                alert('Error launching campaign: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error launching campaign. Please try again.');
+        // Set form field values
+        const channelField = document.getElementById('{{ form.channel.id_for_label }}');
+        const providerField = document.getElementById('{{ form.provider.id_for_label }}');
+        const templateField = document.getElementById('{{ form.template.id_for_label }}');
+        
+        if (channelField) channelField.value = campaignData.channel || '';
+        if (providerField) providerField.value = campaignData.provider || '';
+        if (templateField) templateField.value = campaignData.template || '';
+        
+        // Add custom placeholder values as hidden fields
+        const hiddenFieldsDiv = document.getElementById('hidden-placeholder-fields');
+        if (hiddenFieldsDiv && campaignData.custom_placeholders) {
+            // Clear existing hidden fields
+            hiddenFieldsDiv.innerHTML = '';
+            
+            // Add new hidden fields for each placeholder
+            {% verbatim %}
+            Object.keys(campaignData.custom_placeholders).forEach(placeholder => {
+                const value = campaignData.custom_placeholders[placeholder];
+                const hiddenField = document.createElement('input');
+                hiddenField.type = 'hidden';
+                // Remove {{}} from placeholder name to create clean field name
+                const cleanPlaceholder = placeholder.replace(/\{\{|\}\}/g, '');
+                hiddenField.name = 'placeholder_' + cleanPlaceholder;
+                hiddenField.value = value;
+                hiddenFieldsDiv.appendChild(hiddenField);
+                console.log('Added hidden field for placeholder:', cleanPlaceholder, 'with value:', value);
+            });
+            {% endverbatim %}
+        }
+        
+        console.log('Submitting campaign form with data:', {
+            channel: campaignData.channel,
+            provider: campaignData.provider,
+            template: campaignData.template,
+            custom_placeholders: campaignData.custom_placeholders
         });
+        
+        // Submit the actual form
+        form.submit();
     }
 }
 
-// Event listeners
-document.getElementById('message-content').addEventListener('input', updateMessagePreview);
-document.getElementById('message-subject').addEventListener('input', updateMessagePreview);
+// Event listeners - only add if elements exist
+const messageContent = document.getElementById('message-content');
+const messageSubject = document.getElementById('message-subject');
+
+if (messageContent) {
+    messageContent.addEventListener('input', updateMessagePreview);
+}
+
+if (messageSubject) {
+    messageSubject.addEventListener('input', updateMessagePreview);
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     // Set initial form values from Django form
-    if (document.getElementById('{{ form.name.id_for_label }}').value) {
-        campaignData.name = document.getElementById('{{ form.name.id_for_label }}').value;
+    const nameField = document.getElementById('{{ form.name.id_for_label }}');
+    if (nameField && nameField.value) {
+        campaignData.name = nameField.value;
     }
+    
+    // Initialize the form state
+    const channelField = document.getElementById('{{ form.channel.id_for_label }}');
+    if (channelField) {
+        selectedChannel = channelField.value;
+    }
+    
+    const providerField = document.getElementById('{{ form.provider.id_for_label }}');
+    if (providerField) {
+        selectedProvider = providerField.value;
+    }
+    
+    // Add event listener for MSG91 preview tab
+    const msg91PreviewTab = document.getElementById('msg91-preview-tab');
+    if (msg91PreviewTab) {
+        msg91PreviewTab.addEventListener('click', function() {
+            // Small delay to ensure tab is active
+            setTimeout(() => {
+                loadMSG91Preview();
+            }, 100);
+        });
+    }
+    
+    // Check initial state
+    checkStep1Complete();
 });
+
+// Test API calls for debugging
+function testAPICalls() {
+    const channelSelect = document.getElementById('{{ form.channel.id_for_label }}');
+    const providerSelect = document.getElementById('{{ form.provider.id_for_label }}');
+    const templateSelect = document.getElementById('{{ form.template.id_for_label }}');
+
+    if (!channelSelect || !providerSelect || !templateSelect) {
+        alert('Form elements not found for testing.');
+        return;
+    }
+    
+    // Test the API calls
+    console.log('Testing API calls...');
+    
+    // Test providers API
+    if (channelSelect.value) {
+        const url = new URL('{% url "outreach:get_providers" %}', window.location.origin);
+        url.searchParams.set('channel', channelSelect.value);
+        console.log('Testing providers API:', url.toString());
+        
+        fetch(url.toString(), { credentials: 'same-origin' })
+            .then(res => res.json())
+            .then(data => {
+                console.log('Providers API response:', data);
+            })
+            .catch(error => {
+                console.error('Providers API error:', error);
+            });
+    }
+    
+    // Test templates API
+    if (channelSelect.value && providerSelect.value) {
+        const url = new URL('{% url "outreach:get_vendor_templates" %}', window.location.origin);
+        url.searchParams.set('channel', channelSelect.value);
+        url.searchParams.set('provider', providerSelect.value);
+        console.log('Testing templates API:', url.toString());
+        
+        fetch(url.toString(), { credentials: 'same-origin' })
+            .then(res => res.json())
+            .then(data => {
+                console.log('Templates API response:', data);
+            })
+            .catch(error => {
+                console.error('Templates API error:', error);
+            });
+    }
+}
 </script>
 {% endblock %}

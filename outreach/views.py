@@ -12,6 +12,12 @@ import io
 from .message_delivery import send_campaign_messages_sync
 from .csv_processor import process_csv_upload_sync
 from .tasks import process_customers_csv_task, send_campaign_messages as send_campaign_messages_task
+from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+import json
+import requests
 
 @login_required
 def dashboard(request):
@@ -36,30 +42,91 @@ def create_campaign(request):
         if form.is_valid():
             campaign = form.save(commit=False)
             campaign.created_by = request.user
+            
+            # Set content from template or POST data
+            if form.cleaned_data.get('template'):
+                template = form.cleaned_data['template']
+                campaign.content = template.content
+                campaign.subject = getattr(template, 'subject', '') or ''
+                
+                # Store custom placeholder values if provided
+                custom_placeholders = {}
+                for key, value in request.POST.items():
+                    if key.startswith('placeholder_') and value.strip():
+                        placeholder_name = key.replace('placeholder_', '')
+                        custom_placeholders[placeholder_name] = value.strip()
+                
+                if custom_placeholders:
+                    # Store custom placeholders in campaign data
+                    campaign.custom_placeholders = custom_placeholders
+                    print(f"Stored custom placeholders: {custom_placeholders}")
+                else:
+                    print("No custom placeholders found in request")
+                
+                # Debug: Print all POST data
+                print("All POST data received:")
+                for key, value in request.POST.items():
+                    print(f"  {key}: {value}")
+            else:
+                # Fallback to POST data if no template
+                campaign.content = request.POST.get('content', '')
+                campaign.subject = request.POST.get('subject', '')
+            
             campaign.save()
             
             # Get customers from session
             customer_ids = request.session.get('campaign_customers', [])
+            print(f"Customer IDs from session: {customer_ids}")
+            
             if customer_ids:
                 customers = Customer.objects.filter(id__in=customer_ids)
+                print(f"Found {customers.count()} customers in database")
                 campaign.customers.set(customers)
                 # Clear session
                 del request.session['campaign_customers']
                 
                 # Trigger message delivery asynchronously
                 if customers.exists():
-                    send_campaign_messages_task.delay(str(campaign.id))
-                    messages.success(request, f'Campaign "{campaign.name}" created. Messages are being sent in the background.')
+                    print(f"Triggering message delivery for campaign {campaign.id}")
+                    
+                    # For local development, send synchronously if Celery is not running
+                    # try:
+                    #     send_campaign_messages_task.delay(str(campaign.id))
+                    #     messages.success(request, f'Campaign "{campaign.name}" created. Messages are being sent in the background.')
+                    # except Exception as e:
+                    print(f"Celery task failed, trying synchronous execution:")
+                    # Fallback to synchronous execution for local testing
+                    from .tasks import send_campaign_messages
+                    result = send_campaign_messages(str(campaign.id))
+                    if result.get('success'):
+                        messages.success(request, f'Campaign "{campaign.name}" created and messages sent successfully!')
+                    else:
+                        messages.warning(request, f'Campaign "{campaign.name}" created but message sending failed: {result.get("error", "Unknown error")}')
                 else:
+                    print("No customers found in database")
                     messages.warning(request, f'Campaign "{campaign.name}" created but no customers were found to send messages to.')
+            else:
+                print("No customer IDs found in session")
+                messages.warning(request, f'Campaign "{campaign.name}" created but no customers were added. Please add customers first.')
             
             return redirect('outreach:campaign_overview')
+        else:
+            print("Form errors:", form.errors)
+            return JsonResponse({'success': False, 'error': 'Form validation failed: ' + str(form.errors)})
     else:
         form = CampaignForm()
     
+    # Check if there are customers in session
+    customer_ids = request.session.get('campaign_customers', [])
+    customers_count = len(customer_ids)
+    
+    if customers_count == 0:
+        messages.warning(request, 'Please add customers to your campaign before creating it.')
+        return redirect('outreach:add_customers')
+    
     context = {
         'form': form,
-        'customers_count': len(request.session.get('campaign_customers', [])),
+        'customers_count': customers_count,
     }
     return render(request, 'outreach/create_campaign.html', context)
 
@@ -343,6 +410,7 @@ def get_providers(request):
         providers = [
             {'value': 'aws-ses', 'label': 'AWS SES'},
             {'value': 'twilio-sendgrid', 'label': 'SendGrid (Twilio)'},
+            {'value': 'msg91-email', 'label': 'MSG91 Email'},
         ]
     elif channel == 'sms':
         providers = [
@@ -362,31 +430,126 @@ def get_providers(request):
 
 @login_required
 def get_vendor_templates(request):
-    """Get approved vendor templates for a specific channel and provider (non-email)."""
+    """Get templates from MSG91 API for email providers, or from database for other channels."""
     channel = request.GET.get('channel')
     provider = request.GET.get('provider')
 
-    if not channel or not provider or channel == 'email':
+    if not channel or not provider:
         return JsonResponse({'templates': []})
 
-    templates = VendorTemplate.objects.filter(
-        channel=channel,
-        provider=provider,
-        is_approved=True,
-        status='approved',
-    ).order_by('name')
+    # Handle email templates - fetch from MSG91 API for all email providers
+    if channel == 'email':
+        try:
+            from .msg91_service import MSG91EmailService
+            msg91_service = MSG91EmailService()
+            success, templates = msg91_service.get_templates()
+            
+            if success:
+                data = []
+                for t in templates:
+                    # Get the first version of the template
+                    version = t.get('versions', [{}])[0] if t.get('versions') else {}
+                    
+                    # Create or get MessageTemplate record for MSG91 template
+                    msg91_template_id = str(t.get('id', ''))
+                    
+                    # Skip templates that are not approved/registered (like 5171)
+                    if msg91_template_id == '5171':
+                        continue
+                    
+                    template, created = MessageTemplate.objects.get_or_create(
+                        external_id=msg91_template_id,
+                        defaults={
+                            'name': t.get('name', 'Unknown Template'),
+                            'channel': channel,
+                            'provider': provider,
+                            'content': version.get('body', '') or version.get('html', '') or '',
+                            'subject': version.get('subject', ''),
+                            'created_by': request.user,
+                        }
+                    )
+                    
+                    template_data = {
+                        'id': str(template.id),  # Use Django model UUID
+                        'name': template.name,
+                        'external_id': msg91_template_id,
+                        'content': template.content,
+                        'subject': template.subject,
+                        'preview_link': version.get('preview_link', ''),
+                        'variables': version.get('variables', []),
+                        'source': 'msg91'
+                    }
+                    data.append(template_data)
+                # Fallback to local DB templates if MSG91 list is empty after filtering
+                if not data:
+                    import re
+                    data = []
+                    local_templates = MessageTemplate.objects.filter(channel=channel, provider=provider)
+                    for lt in local_templates:
+                        content = lt.content or ''
+                        vars_found = re.findall(r'\{\{(\w+)\}\}', content)
+                        # dedupe while preserving order
+                        seen = set()
+                        variables = [v for v in vars_found if not (v in seen or seen.add(v))]
+                        data.append({
+                            'id': str(lt.id),
+                            'name': lt.name,
+                            'external_id': lt.external_id,
+                            'content': lt.content,
+                            'subject': lt.subject,
+                            'preview_link': '',
+                            'variables': variables,
+                            'source': 'local'
+                        })
+                return JsonResponse({'templates': data})
+            else:
+                # On failure, fallback to local DB templates so UI isn't empty
+                import re
+                data = []
+                local_templates = MessageTemplate.objects.filter(channel=channel, provider=provider)
+                for lt in local_templates:
+                    content = lt.content or ''
+                    vars_found = re.findall(r'\{\{(\w+)\}\}', content)
+                    seen = set()
+                    variables = [v for v in vars_found if not (v in seen or seen.add(v))]
+                    data.append({
+                        'id': str(lt.id),
+                        'name': lt.name,
+                        'external_id': lt.external_id,
+                        'content': lt.content,
+                        'subject': lt.subject,
+                        'preview_link': '',
+                        'variables': variables,
+                        'source': 'local'
+                    })
+                return JsonResponse({'templates': data})
+                
+        except Exception as e:
+            return JsonResponse({'templates': [], 'error': f'Error fetching MSG91 templates: {str(e)}'})
+    
+    # Handle non-email templates (SMS, WhatsApp) - fetch from database
+    elif channel in ['sms', 'whatsapp']:
+        templates = VendorTemplate.objects.filter(
+            channel=channel,
+            provider=provider,
+            is_approved=True,
+            status='approved',
+        ).order_by('name')
 
-    data = [
-        {
-            'id': str(t.id),
-            'name': t.name,
-            'external_id': t.external_id,
-            'content': t.content,
-        }
-        for t in templates
-    ]
-
-    return JsonResponse({'templates': data})
+        data = [
+            {
+                'id': str(t.id),
+                'name': t.name,
+                'external_id': t.external_id,
+                'content': t.content,
+                'source': 'local'
+            }
+            for t in templates
+        ]
+        return JsonResponse({'templates': data})
+    
+    else:
+        return JsonResponse({'templates': []})
 
 @login_required
 def csv_processing_status(request):
@@ -432,3 +595,188 @@ def _get_customers_for_session_from_result(result, user):
     """Compatibility helper (unused by Celery path)."""
     affected_ids = result.get('affected_ids', [])
     return list(Customer.objects.filter(id__in=affected_ids))
+
+@login_required
+def test_msg91_integration(request):
+    """Test MSG91 integration from web interface"""
+    if request.method == 'POST':
+        try:
+            from .msg91_service import MSG91EmailService
+            
+            msg91_service = MSG91EmailService()
+            
+            # Test 1: Connection test
+            connection_success, connection_message = msg91_service.test_connection()
+            
+            if not connection_success:
+                messages.error(request, f'MSG91 connection test failed: {connection_message}')
+                return redirect('outreach:test_msg91_integration')
+            
+            messages.success(request, f'MSG91 connection test successful: {connection_message}')
+            
+            # Test 2: Send template email
+            template_success, template_message = msg91_service.send_template_email(
+                to_email="avivish000@gmail.com",  # Test email
+                customer_name="Test User",
+                template_id="global_otp",
+                variables={
+                    "company_name": "Josh Talks",
+                    "otp": "123456"
+                }
+            )
+            
+            if template_success:
+                messages.success(request, f'Template email test successful: {template_message}')
+            else:
+                messages.error(request, f'Template email test failed: {template_message}')
+            
+            # Test 3: Send bulk template emails
+            bulk_success, bulk_message = msg91_service.send_bulk_template_emails([
+                {
+                    'name': 'Test User 1',
+                    'email': 'avivish000@gmail.com',
+                    'variables': {
+                        'company_name': 'Josh Talks',
+                        'otp': '123456'
+                    },
+                    'template_id': 'global_otp'
+                },
+                {
+                    'name': 'Test User 2',
+                    'email': 'avikumar@joshtalks.com',
+                    'variables': {
+                        'company_name': 'Josh Jobs',
+                        'otp': '654321'
+                    },
+                    'template_id': 'global_otp'
+                }
+            ])
+            
+            if bulk_success:
+                messages.success(request, f'Bulk template email test successful: {bulk_message}')
+            else:
+                messages.error(request, f'Bulk template email test failed: {bulk_message}')
+                
+        except Exception as e:
+            messages.error(request, f'Error testing MSG91 integration: {str(e)}')
+        
+        return redirect('outreach:test_msg91_integration')
+    
+    # Get MSG91 configuration info
+    context = {
+        'msg91_auth_key': settings.MSG91_AUTH_KEY[:10] + '...' if len(settings.MSG91_AUTH_KEY) > 10 else settings.MSG91_AUTH_KEY,
+        'msg91_email_endpoint': settings.MSG91_EMAIL_ENDPOINT,
+        'msg91_from_email': "developers@joshtalks.com",  # Use working email
+        'msg91_from_name': "Josh2",  # Use working name
+        'msg91_domain': "joshjobs.joshtalks.com",  # Use working domain
+    }
+    
+    return render(request, 'outreach/test_msg91_integration.html', context)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def msg91_template_details(request):
+    """Fetch complete template details from MSG91 API"""
+    try:
+        data = json.loads(request.body)
+        template_name = data.get('template_name')
+        
+        # Add debugging
+        print(f"MSG91 API call received for template: '{template_name}'")
+        
+        if not template_name:
+            return JsonResponse({
+                'success': False,
+                'error': 'Template name is required'
+            })
+        
+        # MSG91 API endpoint for template search
+        url = "https://control.msg91.com/api/v5/email/templates"
+        params = {
+            'page': 1,
+            'with': 'versions',
+            'keyword': template_name,
+            'per_page': 25,
+            'search_in': 'name',
+            'status_id': 2
+        }
+        headers = {
+            'authkey': settings.MSG91_AUTH_KEY
+        }
+        
+        print(f"MSG91 API request: {url} with params: {params}")
+        
+        response = requests.get(url, params=params, headers=headers)
+        
+        print(f"MSG91 API response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            print(f"MSG91 API response: {result}")
+            
+            if result.get('status') == 'success':
+                templates = result.get('data', {}).get('data', [])
+                print(f"Found {len(templates)} templates")
+                
+                # Find the exact template match
+                for template in templates:
+                    template_api_name = template.get('name')
+                    # print(f"Checking template: '{template_api_name}' against requested: '{template_name}'")
+                    
+                    if template_api_name == template_name:
+                        # Get the latest version
+                        versions = template.get('versions', [])
+                        if versions:
+                            latest_version = versions[0]  # Assuming first is latest
+                            
+                            template_details = {
+                                'id': template.get('id'),
+                                'name': template.get('name'),
+                                'subject': latest_version.get('subject', ''),
+                                'body': latest_version.get('body', ''),
+                                'content': latest_version.get('body', ''),
+                                'variables': latest_version.get('variables', []),
+                                'html_content': latest_version.get('body', ''),
+                                'text_content': latest_version.get('text_plain', ''),
+                                'preview_link': latest_version.get('preview_link', ''),
+                                'status': template.get('status_id'),
+                                'is_active': template.get('is_active', False)
+                            }
+                            
+                            # print(f"Template found and details extracted: {template_details}")
+                            
+                            return JsonResponse({
+                                'success': True,
+                                'template': template_details
+                            })
+                
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Template "{template_name}" not found'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'MSG91 API error: {result.get("message", "Unknown error")}'
+                })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': f'MSG91 API request failed with status {response.status_code}'
+            })
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        })
+    except Exception as e:
+        print(f"Unexpected error in msg91_template_details: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        })
+
+def test_dynamic_form(request):
+    """Test page for dynamic form functionality"""
+    return render(request, 'outreach/test_dynamic_form.html')

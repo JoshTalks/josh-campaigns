@@ -1,0 +1,80 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Test MSG91 Integration{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-envelope"></i> MSG91 Integration Test
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> MSG91 Configuration (Working Setup)</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Auth Key:</strong> {{ msg91_auth_key }}<br>
+                                <strong>Email Endpoint:</strong> {{ msg91_email_endpoint }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>From Email:</strong> {{ msg91_from_email }}<br>
+                                <strong>From Name:</strong> {{ msg91_from_name }}<br>
+                                <strong>Domain:</strong> {{ msg91_domain }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-play"></i> Test MSG91 Connection
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if messages %}
+                        <div class="mt-4">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="mt-4">
+                        <h6><i class="fas fa-lightbulb"></i> What this enhanced test does:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Verifies MSG91 API connection</li>
+                            <li><i class="fas fa-check text-success"></i> Tests authentication with your API key</li>
+                            <li><i class="fas fa-check text-success"></i> Sends a real template email to avivish000@gmail.com</li>
+                            <li><i class="fas fa-check text-success"></i> Sends bulk template emails to multiple recipients</li>
+                            <li><i class="fas fa-check text-success"></i> Uses the exact working configuration from test_msg91_simple.py</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-4">
+                        <h6><i class="fas fa-question-circle"></i> Need help?</h6>
+                        <p class="text-muted">
+                            If the test fails, please check:
+                        </p>
+                        <ul class="text-muted">
+                            <li>Your MSG91 API key is correct and active</li>
+                            <li>Your MSG91 account has email sending permissions</li>
+                            <li>The from email address is verified in MSG91</li>
+                            <li>Your internet connection and firewall settings</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

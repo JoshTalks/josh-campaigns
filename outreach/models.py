@@ -31,11 +31,27 @@ class MessageTemplate(models.Model):
         ('whatsapp', 'WhatsApp'),
     ]
     
+    PROVIDER_CHOICES = [
+        # Email providers
+        ('aws-ses', 'AWS SES'),
+        ('twilio-sendgrid', 'SendGrid'),
+        ('msg91-email', 'MSG91 Email'),
+        # SMS providers
+        ('gupshup-sms', 'Gupshup SMS'),
+        ('msg91-sms', 'MSG91'),
+        ('twilio-sms', 'Twilio SMS'),
+        # WhatsApp providers
+        ('meta-whatsapp', 'Meta Cloud API'),
+        ('gupshup-whatsapp', 'Gupshup WhatsApp'),
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
+    provider = models.CharField(max_length=50, choices=PROVIDER_CHOICES, default='aws-ses')
     subject = models.CharField(max_length=255, blank=True, null=True)
     content = models.TextField()
+    external_id = models.CharField(max_length=255, blank=True, null=True, help_text="External template ID from vendor system")
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -43,9 +59,12 @@ class MessageTemplate(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['channel']),
+            models.Index(fields=['provider']),
+            models.Index(fields=['external_id']),
             models.Index(fields=['created_by']),
             models.Index(fields=['created_at']),
         ]
+        unique_together = [['provider', 'external_id']]
 
     def __str__(self):
         return f"{self.name} ({self.get_channel_display()})"
@@ -61,6 +80,7 @@ class Campaign(models.Model):
         # Email providers
         ('aws-ses', 'AWS SES'),
         ('twilio-sendgrid', 'SendGrid'),
+        ('msg91-email', 'MSG91 Email'),
         # SMS providers
         ('gupshup-sms', 'Gupshup SMS'),
         ('msg91-sms', 'MSG91'),
@@ -80,11 +100,12 @@ class Campaign(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, blank=True)  # Will be auto-generated
     channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
-    provider = models.CharField(max_length=50, choices=PROVIDER_CHOICES)
+    provider = models.CharField(max_length=50, choices=PROVIDER_CHOICES, default='aws-ses')
     subject = models.CharField(max_length=255, blank=True, null=True)
     content = models.TextField()
     customers = models.ManyToManyField(Customer, through='CampaignCustomer')
     template = models.ForeignKey(MessageTemplate, on_delete=models.SET_NULL, null=True, blank=True)
+    custom_placeholders = models.JSONField(default=dict, blank=True, help_text="Custom values for template placeholders")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,0 +1,187 @@
+{% extends 'outreach/base.html' %}
+
+{% block title %}Test Dynamic Form - Outreach Campaign Manager{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Test Dynamic Form</h1>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Dynamic Form Test</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="channel" class="form-label">Communication Channel *</label>
+                        <select id="channel" class="form-control">
+                            <option value="">Select Channel</option>
+                            <option value="email">Email</option>
+                            <option value="sms">SMS</option>
+                            <option value="whatsapp">WhatsApp</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="provider" class="form-label">Service Provider *</label>
+                        <select id="provider" class="form-control">
+                            <option value="">Select Channel First</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="template" class="form-label">Vendor Template *</label>
+                        <select id="template" class="form-control">
+                            <option value="">Select Provider First</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Debug Information</h5>
+                </div>
+                <div class="card-body">
+                    <div id="debug-info">
+                        <p><strong>Selected Channel:</strong> <span id="selected-channel">None</span></p>
+                        <p><strong>Selected Provider:</strong> <span id="selected-provider">None</span></p>
+                        <p><strong>Selected Template:</strong> <span id="selected-template">None</span></p>
+                        <p><strong>API Calls:</strong> <span id="api-calls">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedChannel = '';
+let selectedProvider = '';
+let apiCallCount = 0;
+
+// Channel selection
+document.getElementById('channel').addEventListener('change', function() {
+    selectedChannel = this.value;
+    document.getElementById('selected-channel').textContent = selectedChannel || 'None';
+    
+    console.log('Channel changed to:', selectedChannel);
+    
+    // Reset provider and template
+    const providerSelect = document.getElementById('provider');
+    const templateSelect = document.getElementById('template');
+    
+    providerSelect.innerHTML = '<option value="">Loading providers...</option>';
+    templateSelect.innerHTML = '<option value="">Select Provider First</option>';
+    
+    // Fetch providers for selected channel
+    if (selectedChannel) {
+        const url = new URL('{% url "outreach:get_providers" %}', window.location.origin);
+        url.searchParams.set('channel', selectedChannel);
+        console.log('Fetching providers from:', url.toString());
+        
+        apiCallCount++;
+        document.getElementById('api-calls').textContent = apiCallCount;
+        
+        fetch(url.toString(), { credentials: 'same-origin' })
+            .then(res => {
+                console.log('Providers response status:', res.status);
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log('Providers response:', data);
+                providerSelect.innerHTML = '<option value="">Select Provider</option>';
+                
+                if (data.providers && data.providers.length > 0) {
+                    data.providers.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.value;
+                        opt.textContent = p.label;
+                        providerSelect.appendChild(opt);
+                    });
+                    console.log('Loaded', data.providers.length, 'providers');
+                } else {
+                    providerSelect.innerHTML = '<option value="">No providers available</option>';
+                    console.log('No providers found for channel:', selectedChannel);
+                }
+            })
+            .catch((error) => {
+                console.error('Error loading providers:', error);
+                providerSelect.innerHTML = '<option value="">Error loading providers</option>';
+            });
+    } else {
+        providerSelect.innerHTML = '<option value="">Select Channel First</option>';
+    }
+});
+
+// Provider selection
+document.getElementById('provider').addEventListener('change', function() {
+    selectedProvider = this.value;
+    document.getElementById('selected-provider').textContent = selectedProvider || 'None';
+    
+    console.log('Provider changed to:', selectedProvider);
+    
+    // Clear template when provider changes
+    const templateSelect = document.getElementById('template');
+    templateSelect.innerHTML = '<option value="">Loading templates...</option>';
+    
+    // Load vendor templates if channel and provider are selected
+    if (selectedChannel && selectedProvider) {
+        console.log('Loading templates for channel:', selectedChannel, 'provider:', selectedProvider);
+        
+        const url = new URL('{% url "outreach:get_vendor_templates" %}', window.location.origin);
+        url.searchParams.set('channel', selectedChannel);
+        url.searchParams.set('provider', selectedProvider);
+        
+        apiCallCount++;
+        document.getElementById('api-calls').textContent = apiCallCount;
+        
+        fetch(url.toString(), { credentials: 'same-origin' })
+            .then(res => {
+                console.log('Templates response status:', res.status);
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log('Templates response:', data);
+                templateSelect.innerHTML = '<option value="">Select Template</option>';
+                
+                if (data.templates && data.templates.length > 0) {
+                    data.templates.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = t.name;
+                        templateSelect.appendChild(opt);
+                    });
+                    console.log('Loaded', data.templates.length, 'templates');
+                } else {
+                    templateSelect.innerHTML = '<option value="">No templates available</option>';
+                    console.log('No templates found for channel/provider:', selectedChannel, selectedProvider);
+                }
+            })
+            .catch((error) => {
+                console.error('Error loading templates:', error);
+                templateSelect.innerHTML = '<option value="">Error loading templates</option>';
+            });
+    } else {
+        templateSelect.innerHTML = '<option value="">Select Provider First</option>';
+    }
+});
+
+// Template selection
+document.getElementById('template').addEventListener('change', function() {
+    const selectedTemplate = this.value;
+    document.getElementById('selected-template').textContent = selectedTemplate || 'None';
+    
+    console.log('Template changed to:', selectedTemplate);
+});
+</script>
+{% endblock %}

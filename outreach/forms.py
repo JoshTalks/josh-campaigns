@@ -42,49 +42,109 @@ class CustomerManualForm(forms.Form):
     job_link = forms.URLField(required=False, widget=forms.URLInput(attrs={'class': 'form-control'}))
 
 class CampaignForm(forms.ModelForm):
-    vendor_template = forms.ModelChoiceField(
-        queryset=VendorTemplate.objects.none(),
-        required=False,
+    channel = forms.ChoiceField(
+        choices=Campaign.CHANNEL_CHOICES,
         widget=forms.Select(attrs={'class': 'form-control'}),
-        label='Vendor Template (for SMS/WhatsApp)'
+        label='Communication Channel *'
+    )
+    
+    provider = forms.ChoiceField(
+        choices=[],  # Will be populated dynamically based on channel
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Service Provider *'
+    )
+    
+    template = forms.ModelChoiceField(
+        queryset=MessageTemplate.objects.none(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Message Template *'
     )
     
     class Meta:
         model = Campaign
-        fields = ['channel', 'provider', 'subject', 'content', 'vendor_template']
-        widgets = {
-            'channel': forms.Select(attrs={'class': 'form-control'}),
-            'provider': forms.Select(attrs={'class': 'form-control'}),
-            'subject': forms.TextInput(attrs={'class': 'form-control'}),
-            'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 6}),
-        }
+        fields = ['channel', 'provider', 'template']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Make subject required only for email campaigns
-        self.fields['subject'].required = False
         
-        # Dynamically set queryset for vendor_template
-        if 'channel' in self.initial and 'provider' in self.initial:
-            self.fields['vendor_template'].queryset = VendorTemplate.objects.filter(
-                channel=self.initial['channel'],
-                provider=self.initial['provider'],
-                is_approved=True
-            )
-        elif self.instance.pk:  # For editing existing campaign
-            self.fields['vendor_template'].queryset = VendorTemplate.objects.filter(
-                channel=self.instance.channel,
-                provider=self.instance.provider,
-                is_approved=True
-            )
+        # Set channel choices
+        self.fields['channel'].choices = [('', 'Select Channel')] + Campaign.CHANNEL_CHOICES
+        
+        # Set initial provider choices (empty, will be populated via JavaScript)
+        self.fields['provider'].choices = [('', 'Select Channel First')]
+        
+        # Set initial template queryset (empty, will be populated via JavaScript)
+        self.fields['template'].queryset = MessageTemplate.objects.none()
+        
+        # If we have POST data, populate the choices dynamically
+        if self.data:
+            channel = self.data.get('channel')
+            provider = self.data.get('provider')
+            
+            if channel:
+                # Set provider choices based on submitted channel
+                provider_choices = self.get_provider_choices_for_channel(channel)
+                self.fields['provider'].choices = [('', 'Select Provider')] + provider_choices
+                
+                if provider:
+                    # Set template queryset based on submitted channel and provider
+                    self.fields['template'].queryset = MessageTemplate.objects.filter(
+                        channel=channel,
+                        provider=provider
+                    )
+        
+        # If editing existing campaign, populate the fields
+        elif self.instance.pk:
+            # Set provider choices based on existing channel
+            if self.instance.channel:
+                provider_choices = self.get_provider_choices_for_channel(self.instance.channel)
+                self.fields['provider'].choices = [('', 'Select Provider')] + provider_choices
+                
+                # Set template queryset based on existing channel and provider
+                if self.instance.provider:
+                    self.fields['template'].queryset = MessageTemplate.objects.filter(
+                        channel=self.instance.channel,
+                        provider=self.instance.provider
+                    )
+    
+    def get_provider_choices_for_channel(self, channel):
+        """Get provider choices for a specific channel"""
+        if channel == 'email':
+            return [
+                ('aws-ses', 'AWS SES'),
+                ('twilio-sendgrid', 'SendGrid (Twilio)'),
+                ('msg91-email', 'MSG91 Email'),
+            ]
+        elif channel == 'sms':
+            return [
+                ('gupshup-sms', 'Gupshup'),
+                ('msg91-sms', 'MSG91'),
+                ('twilio-sms', 'Twilio'),
+            ]
+        elif channel == 'whatsapp':
+            return [
+                ('meta-whatsapp', 'Meta Cloud API'),
+                ('gupshup-whatsapp', 'Gupshup'),
+            ]
+        else:
+            return []
     
     def clean(self):
         cleaned_data = super().clean()
         channel = cleaned_data.get('channel')
-        subject = cleaned_data.get('subject')
+        provider = cleaned_data.get('provider')
+        template = cleaned_data.get('template')
         
-        if channel == 'email' and not subject:
-            self.add_error('subject', 'Subject is required for email campaigns.')
+        # Validate provider belongs to selected channel
+        if channel and provider:
+            valid_providers = [p[0] for p in self.get_provider_choices_for_channel(channel)]
+            if provider not in valid_providers:
+                self.add_error('provider', f'Provider "{provider}" is not valid for channel "{channel}".')
+        
+        # Template is required for all campaigns
+        if not template:
+            self.add_error('template', 'Message template is required for all campaigns.')
         
         return cleaned_data
 
