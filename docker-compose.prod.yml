@@ -8,12 +8,13 @@ services:
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
+    env_file:
+      - .env
     environment:
       - DJANGO_SETTINGS_MODULE=joshCampaigns.settings
       - DEBUG=False
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@cloud-sql-proxy:5432/${DB_NAME}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASS=${REDIS_PASS}
       - REDIS_DB=${REDIS_DB}
@@ -24,8 +25,6 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              gunicorn joshCampaigns.wsgi:application --bind 0.0.0.0:8000 --workers 3"
-    depends_on:
-      - cloud-sql-proxy
     restart: unless-stopped
 
   cloud-sql-proxy:
@@ -36,6 +35,8 @@ services:
       - ./service-account-key.json:/secrets/service-account-key.json
     ports:
       - "5432:5432"
+    profiles:
+      - gcp
     restart: unless-stopped
 
   nginx:
@@ -56,11 +57,12 @@ services:
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
+    env_file:
+      - .env
     environment:
       - DJANGO_SETTINGS_MODULE=joshCampaigns.settings
       - DEBUG=False
       - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@cloud-sql-proxy:5432/${DB_NAME}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASS=${REDIS_PASS}
       - REDIS_DB=${REDIS_DB}
@@ -68,7 +70,6 @@ services:
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
       - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
-      - cloud-sql-proxy
       - web
     restart: unless-stopped
 
@@ -78,11 +79,12 @@ services:
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
+    env_file:
+      - .env
     environment:
       - DJANGO_SETTINGS_MODULE=joshCampaigns.settings
       - DEBUG=False
       - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@cloud-sql-proxy:5432/${DB_NAME}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASS=${REDIS_PASS}
       - REDIS_DB=${REDIS_DB}
@@ -90,7 +92,6 @@ services:
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
       - SENDGRID_API_KEY=${SENDGRID_API_KEY}
     depends_on:
-      - cloud-sql-proxy
       - web
     restart: unless-stopped
 
