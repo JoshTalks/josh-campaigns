@@ -185,19 +185,91 @@ def send_email_message(campaign, customer, message):
 
 def send_sms_message(campaign, customer, message):
     """
-    Send SMS message (placeholder for future SMS provider integration)
+    Send SMS message
     """
     try:
-        # TODO: Implement SMS sending logic for different providers
-        # For now, just log and mark as failed
-        logger.info(f"SMS sending not yet implemented for provider: {campaign.provider}")
-        message.error_message = "SMS sending not yet implemented"
-        return False
+        if not customer.phone:
+            message.error_message = "Customer phone missing"
+            return False
+
+        # Clean and format phone number for Gupshup
+        phone = clean_phone_number(customer.phone)
+        if not phone:
+            message.error_message = "Invalid phone number format"
+            return False
+
+        sms_text = campaign.content or ''
+        # Basic placeholder replacement for common fields
+        sms_text = sms_text.replace('{{name}}', customer.name or '')
+        sms_text = sms_text.replace('{{phone}}', phone or '')
+        sms_text = sms_text.replace('{{email}}', customer.email or '')
+        sms_text = sms_text.replace('{{address}}', customer.address or '')
+        sms_text = sms_text.replace('{{job_link}}', customer.job_link or '')
+
+        if campaign.provider == 'gupshup-sms':
+            from .gupshup_service import GupshupSMSService
+            gs = GupshupSMSService()
+            # Choose type based on campaign.subject (optional) defaults to TRANSACTIONAL
+            msg_type = (campaign.subject or 'TRANSACTIONAL').upper()
+            ok, info = gs.send_sms(phone, sms_text, msg_type=msg_type)
+            if not ok:
+                message.error_message = info
+                message.status = 'failed'
+                message.save()
+                return False
+            else:
+                # Update message status to sent
+                message.status = 'sent'
+                message.sent_at = timezone.now()
+                message.error_message = ''
+                message.save()
+                return True
+        else:
+            logger.info(f"SMS provider not supported yet: {campaign.provider}")
+            message.error_message = f"Unsupported SMS provider: {campaign.provider}"
+            return False
         
     except Exception as e:
         logger.error(f"Error sending SMS to {customer.phone}: {str(e)}")
         message.error_message = str(e)
         return False
+
+
+def clean_phone_number(phone):
+    """
+    Clean and format phone number for Gupshup SMS
+    Gupshup expects 10-digit Indian mobile numbers or international format
+    """
+    if not phone:
+        return None
+    
+    # Remove all non-digit characters except +
+    import re
+    cleaned = re.sub(r'[^\d+]', '', phone)
+    
+    # Handle different formats
+    if cleaned.startswith('+'):
+        # International format - remove + and check length
+        digits = cleaned[1:]
+        if len(digits) == 10 and digits.startswith(('6', '7', '8', '9')):
+            # Indian mobile number with country code
+            return digits
+        elif len(digits) == 11 and digits.startswith('1'):
+            # US number with country code
+            return digits[1:]  # Remove country code for now
+        else:
+            # Other international - try to extract last 10 digits
+            if len(digits) >= 10:
+                return digits[-10:]
+    else:
+        # Local format
+        if len(cleaned) == 10 and cleaned.startswith(('6', '7', '8', '9')):
+            return cleaned
+        elif len(cleaned) == 11 and cleaned.startswith('1'):
+            return cleaned[1:]
+    
+    # If we can't format it properly, return as is and let Gupshup handle it
+    return cleaned
 
 def send_whatsapp_message(campaign, customer, message):
     """

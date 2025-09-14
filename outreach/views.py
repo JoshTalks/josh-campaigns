@@ -224,29 +224,53 @@ def get_or_create_customer(customer_data):
     email = customer_data.get('email')
     phone = customer_data.get('phone')
     
-    # Try to find existing customer by email or phone
+    # Try to find existing customer by email AND phone combination
     customer = None
-    if email:
+    if email and phone:
         try:
-            customer = Customer.objects.get(email=email)
+            customer = Customer.objects.get(email=email, phone=phone)
         except Customer.DoesNotExist:
             pass
     
+    # If not found by combination, try to find by email only (for backward compatibility)
+    if not customer and email:
+        try:
+            customer = Customer.objects.get(email=email)
+            # If found by email only, update the phone if it's different
+            if customer.phone != phone:
+                # Create a new customer with the new phone number
+                customer = None
+        except Customer.DoesNotExist:
+            pass
+    
+    # If not found by email, try to find by phone only (for backward compatibility)
     if not customer and phone:
         try:
             customer = Customer.objects.get(phone=phone)
+            # If found by phone only, update the email if it's different
+            if customer.email != email:
+                # Create a new customer with the new email
+                customer = None
         except Customer.DoesNotExist:
             pass
     
     if customer:
-        # Update existing customer fields (except email/phone identifiers)
+        # Update existing customer fields (including email/phone if they match)
         customer.name = customer_data.get('name', customer.name)
         customer.address = customer_data.get('address', customer.address)
         customer.job_link = customer_data.get('job_link', customer.job_link)
         customer.save()
     else:
         # Create new customer
-        customer = Customer.objects.create(**customer_data)
+        try:
+            customer = Customer.objects.create(**customer_data)
+        except Exception as e:
+            # If creation fails due to unique constraint, try to find existing customer
+            if email and phone:
+                try:
+                    customer = Customer.objects.get(email=email, phone=phone)
+                except Customer.DoesNotExist:
+                    raise e
     
     return customer
 
@@ -430,126 +454,117 @@ def get_providers(request):
 
 @login_required
 def get_vendor_templates(request):
-    """Get templates from MSG91 API for email providers, or from database for other channels."""
+    """
+    Fetch templates from vendor APIs or local database based on provider type
+    """
     channel = request.GET.get('channel')
     provider = request.GET.get('provider')
 
     if not channel or not provider:
         return JsonResponse({'templates': []})
 
-    # Handle email templates - fetch from MSG91 API for all email providers
-    if channel == 'email':
-        try:
-            from .msg91_service import MSG91EmailService
-            msg91_service = MSG91EmailService()
-            success, templates = msg91_service.get_templates()
-            
-            if success:
-                data = []
-                for t in templates:
-                    # Get the first version of the template
-                    version = t.get('versions', [{}])[0] if t.get('versions') else {}
-                    
-                    # Create or get MessageTemplate record for MSG91 template
-                    msg91_template_id = str(t.get('id', ''))
-                    
-                    # Skip templates that are not approved/registered (like 5171)
-                    if msg91_template_id == '5171':
-                        continue
-                    
-                    template, created = MessageTemplate.objects.get_or_create(
-                        external_id=msg91_template_id,
-                        defaults={
-                            'name': t.get('name', 'Unknown Template'),
-                            'channel': channel,
-                            'provider': provider,
-                            'content': version.get('body', '') or version.get('html', '') or '',
-                            'subject': version.get('subject', ''),
-                            'created_by': request.user,
-                        }
-                    )
-                    
-                    template_data = {
-                        'id': str(template.id),  # Use Django model UUID
-                        'name': template.name,
-                        'external_id': msg91_template_id,
-                        'content': template.content,
-                        'subject': template.subject,
-                        'preview_link': version.get('preview_link', ''),
-                        'variables': version.get('variables', []),
-                        'source': 'msg91'
-                    }
-                    data.append(template_data)
-                # Fallback to local DB templates if MSG91 list is empty after filtering
-                if not data:
-                    import re
-                    data = []
-                    local_templates = MessageTemplate.objects.filter(channel=channel, provider=provider)
-                    for lt in local_templates:
-                        content = lt.content or ''
-                        vars_found = re.findall(r'\{\{(\w+)\}\}', content)
-                        # dedupe while preserving order
-                        seen = set()
-                        variables = [v for v in vars_found if not (v in seen or seen.add(v))]
-                        data.append({
-                            'id': str(lt.id),
-                            'name': lt.name,
-                            'external_id': lt.external_id,
-                            'content': lt.content,
-                            'subject': lt.subject,
-                            'preview_link': '',
-                            'variables': variables,
-                            'source': 'local'
-                        })
-                return JsonResponse({'templates': data})
+    try:
+        # Define which providers use API vs manual templates
+        api_providers = ['msg91-email']  # Add more API-based providers here
+        manual_providers = ['gupshup-sms']  # Add more manual providers here
+        
+        if provider in api_providers:
+            # API-based template fetching (MSG91 Email)
+            if channel == 'email' and provider == 'msg91-email':
+                return _fetch_msg91_templates(request, channel, provider)
             else:
-                # On failure, fallback to local DB templates so UI isn't empty
-                import re
-                data = []
-                local_templates = MessageTemplate.objects.filter(channel=channel, provider=provider)
-                for lt in local_templates:
-                    content = lt.content or ''
-                    vars_found = re.findall(r'\{\{(\w+)\}\}', content)
-                    seen = set()
-                    variables = [v for v in vars_found if not (v in seen or seen.add(v))]
-                    data.append({
-                        'id': str(lt.id),
-                        'name': lt.name,
-                        'external_id': lt.external_id,
-                        'content': lt.content,
-                        'subject': lt.subject,
-                        'preview_link': '',
-                        'variables': variables,
-                        'source': 'local'
-                    })
-                return JsonResponse({'templates': data})
+                return JsonResponse({'templates': [], 'error': f'API provider {provider} not supported for channel {channel}'})
                 
-        except Exception as e:
-            return JsonResponse({'templates': [], 'error': f'Error fetching MSG91 templates: {str(e)}'})
-    
-    # Handle non-email templates (SMS, WhatsApp) - fetch from database
-    elif channel in ['sms', 'whatsapp']:
-        templates = VendorTemplate.objects.filter(
-            channel=channel,
-            provider=provider,
-            is_approved=True,
-            status='approved',
-        ).order_by('name')
+        elif provider in manual_providers:
+            # Manual template fetching from database (Gupshup SMS)
+            return _fetch_manual_templates(request, channel, provider)
+        else:
+            return JsonResponse({'templates': [], 'error': f'Unknown provider: {provider}'})
+                
+    except Exception as e:
+        return JsonResponse({'templates': [], 'error': f'Error fetching templates: {str(e)}'})
 
-        data = [
-            {
-                'id': str(t.id),
-                'name': t.name,
-                'external_id': t.external_id,
-                'content': t.content,
-                'source': 'local'
-            }
-            for t in templates
-        ]
-        return JsonResponse({'templates': data})
+
+def _fetch_msg91_templates(request, channel, provider):
+    """Fetch templates from MSG91 API and upsert to database"""
+    try:
+        from .msg91_service import MSG91EmailService
+        msg91_service = MSG91EmailService()
+        success, templates = msg91_service.get_templates()
+        
+        if success:
+            data = []
+            for t in templates:
+                # Get the first version of the template
+                version = t.get('versions', [{}])[0] if t.get('versions') else {}
+                
+                # Create or get MessageTemplate record for MSG91 template
+                msg91_template_id = str(t.get('id', ''))
+                
+                # Skip templates that are not approved/registered (like 5171)
+                if msg91_template_id == '5171':
+                    continue
+                
+                template, created = MessageTemplate.objects.get_or_create(
+                    external_id=msg91_template_id,
+                    defaults={
+                        'name': t.get('name', 'Unknown Template'),
+                        'channel': channel,
+                        'provider': provider,
+                        'content': version.get('body', '') or version.get('html', '') or '',
+                        'subject': version.get('subject', ''),
+                        'created_by': request.user,
+                    }
+                )
+                
+                template_data = {
+                    'id': str(template.id),  # Use Django model UUID
+                    'name': template.name,
+                    'external_id': msg91_template_id,
+                    'content': template.content,
+                    'subject': template.subject,
+                    'preview_link': version.get('preview_link', ''),
+                    'variables': version.get('variables', []),
+                    'source': 'msg91'
+                }
+                data.append(template_data)
+            
+            # Fallback to local DB templates if MSG91 list is empty after filtering
+            if not data:
+                return _fetch_manual_templates(request, channel, provider)
+            return JsonResponse({'templates': data})
+        else:
+            # On failure, fallback to local DB templates so UI isn't empty
+            return _fetch_manual_templates(request, channel, provider)
+            
+    except Exception as e:
+        return JsonResponse({'templates': [], 'error': f'Error fetching MSG91 templates: {str(e)}'})
+
+
+def _fetch_manual_templates(request, channel, provider):
+    """Fetch templates from local database (manual entry)"""
+    import re
+    data = []
+    local_templates = MessageTemplate.objects.filter(channel=channel, provider=provider)
     
-    else:
-        return JsonResponse({'templates': []})
+    for lt in local_templates:
+        content = lt.content or ''
+        vars_found = re.findall(r'\{\{(\w+)\}\}', content)
+        # dedupe while preserving order
+        seen = set()
+        variables = [v for v in vars_found if not (v in seen or seen.add(v))]
+        data.append({
+            'id': str(lt.id),
+            'name': lt.name,
+            'external_id': lt.external_id,
+            'content': lt.content,
+            'subject': lt.subject,
+            'preview_link': '',
+            'variables': variables,
+            'source': 'manual'
+        })
+    
+    return JsonResponse({'templates': data})
 
 @login_required
 def csv_processing_status(request):

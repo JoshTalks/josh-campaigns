@@ -14,10 +14,96 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(MessageTemplate)
 class MessageTemplateAdmin(admin.ModelAdmin):
-    list_display = ['name', 'channel', 'created_by', 'created_at']
-    list_filter = ['channel', 'created_at']
-    search_fields = ['name', 'content']
+    list_display = ['name', 'channel', 'provider', 'external_id', 'created_by', 'created_at']
+    list_filter = ['channel', 'provider', 'created_at']
+    search_fields = ['name', 'content', 'external_id']
     readonly_fields = ['id', 'created_at']
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'channel', 'provider', 'external_id')
+        }),
+        ('Content', {
+            'fields': ('subject', 'content')
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('created_by')
+    
+    actions = ['create_sample_sms_templates']
+    
+    def create_sample_sms_templates(self, request, queryset):
+        """Create sample SMS templates for Gupshup"""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # Get or create a system user for templates
+        system_user, created = User.objects.get_or_create(
+            username='system',
+            defaults={'email': 'system@joshtalks.com', 'is_staff': True}
+        )
+        
+        sample_templates = [
+            {
+                'name': 'OTP Template',
+                'channel': 'sms',
+                'provider': 'gupshup-sms',
+                'external_id': 'otp_template',
+                'subject': 'OTP Verification',
+                'content': 'Your OTP for {{company_name}} is {{otp}}. Valid for 5 minutes. Do not share with anyone.',
+            },
+            {
+                'name': 'Job Application Reminder',
+                'channel': 'sms',
+                'provider': 'gupshup-sms',
+                'external_id': 'job_reminder',
+                'subject': 'Job Application',
+                'content': 'Hi {{name}}, don\'t forget to apply for the {{job_title}} position at {{company_name}}. Apply here: {{job_link}}',
+            },
+            {
+                'name': 'Welcome Message',
+                'channel': 'sms',
+                'provider': 'gupshup-sms',
+                'external_id': 'welcome_sms',
+                'subject': 'Welcome',
+                'content': 'Welcome to {{company_name}}, {{name}}! We\'re excited to have you on board.',
+            },
+            {
+                'name': 'Appointment Reminder',
+                'channel': 'sms',
+                'provider': 'gupshup-sms',
+                'external_id': 'appointment_reminder',
+                'subject': 'Appointment Reminder',
+                'content': 'Hi {{name}}, this is a reminder about your appointment with {{company_name}} tomorrow at {{appointment_time}}.',
+            }
+        ]
+        
+        created_count = 0
+        for template_data in sample_templates:
+            template, created = MessageTemplate.objects.get_or_create(
+                external_id=template_data['external_id'],
+                defaults={
+                    'name': template_data['name'],
+                    'channel': template_data['channel'],
+                    'provider': template_data['provider'],
+                    'subject': template_data['subject'],
+                    'content': template_data['content'],
+                    'created_by': system_user,
+                }
+            )
+            if created:
+                created_count += 1
+        
+        if created_count > 0:
+            messages.success(request, f'Created {created_count} sample SMS templates for Gupshup')
+        else:
+            messages.info(request, 'Sample SMS templates already exist')
+    
+    create_sample_sms_templates.short_description = "Create sample SMS templates for Gupshup"
 
 @admin.register(VendorTemplate)
 class VendorTemplateAdmin(admin.ModelAdmin):

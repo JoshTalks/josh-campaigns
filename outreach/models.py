@@ -19,7 +19,7 @@ class Customer(models.Model):
             models.Index(fields=['phone']),
             models.Index(fields=['created_at']),
         ]
-        unique_together = [['email'], ['phone']]
+        unique_together = [['email', 'phone']]
 
     def __str__(self):
         return self.name

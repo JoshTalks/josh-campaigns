@@ -182,11 +182,25 @@
                                             <p><strong>Template Name:</strong></p>
                                             <p id="preview-template-name" class="text-primary fw-bold">-</p>
                                         </div>
-                                        <div class="col-md-8">
+                                        <div class="col-md-4">
+                                            <p><strong>Subject:</strong></p>
+                                            <p id="preview-template-subject" class="text-info">-</p>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <p><strong>Provider:</strong></p>
+                                            <p id="preview-template-provider" class="text-success">-</p>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
                                             <p><strong>Message Content:</strong></p>
-                                            <div id="preview-template-content" class="border p-3 bg-light rounded">
+                                            <div id="preview-template-content" class="border p-3 bg-light rounded" style="max-height: 200px; overflow-y: auto;">
                                                 <p class="text-muted">Select a template to preview its content...</p>
                                             </div>
+                                            <small class="text-muted mt-2 d-block">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Variables like {{name}}, {{email}} will be replaced with actual customer data
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
@@ -816,6 +830,12 @@ function loadVendorTemplatesForStep1() {
     console.log('Loading templates for channel:', selectedChannel, 'provider:', selectedProvider);
     templateField.innerHTML = '<option value="">Loading templates...</option>';
     
+    // Show loading state in preview
+    const previewContent = document.getElementById('preview-template-content');
+    if (previewContent) {
+        previewContent.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin me-2"></i>Loading templates...</div>';
+    }
+    
     const url = new URL('{% url "outreach:get_vendor_templates" %}', window.location.origin);
     url.searchParams.set('channel', selectedChannel);
     url.searchParams.set('provider', selectedProvider);
@@ -857,7 +877,13 @@ function loadVendorTemplatesForStep1() {
                 console.log('Loaded', data.templates.length, 'templates');
             } else {
                 console.log('No templates found');
-                templateField.innerHTML = '<option value="">No templates available</option>';
+                templateField.innerHTML = '<option value="">No templates available for ' + selectedProvider + '</option>';
+                
+                // Show helpful message
+                const previewContent = document.getElementById('preview-template-content');
+                if (previewContent) {
+                    previewContent.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No templates found for this provider. Please create templates in the admin panel or try a different provider.</div>';
+                }
             }
             
             // Remove existing event listener to prevent duplicates
@@ -874,6 +900,12 @@ function loadVendorTemplatesForStep1() {
         .catch((error) => {
             console.error('Error loading templates:', error);
             templateField.innerHTML = '<option value="">Error loading templates</option>';
+            
+            // Show error message in preview
+            const previewContent = document.getElementById('preview-template-content');
+            if (previewContent) {
+                previewContent.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Failed to load templates. Please check your connection and try again.</div>';
+            }
         });
 }
 
@@ -920,24 +952,28 @@ function showTemplatePreview(templateId) {
         const templateSubject = selectedOption.dataset.subject || 'No subject';
         
         // Update template info display
-        const templateNameElement = document.getElementById('template-name');
-        const templateContentElement = document.getElementById('template-content');
-        const templateSubjectElement = document.getElementById('template-subject');
+        const templateNameElement = document.getElementById('preview-template-name');
+        const templateContentElement = document.getElementById('preview-template-content');
+        const templateSubjectElement = document.getElementById('preview-template-subject');
         
         if (templateNameElement) {
             templateNameElement.textContent = selectedOption.textContent;
         }
         
         if (templateContentElement) {
-            // Strip HTML and decode entities for display
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = templateContent;
-            const textContent = tempDiv.textContent || tempDiv.innerText || '';
-            templateContentElement.textContent = textContent;
+            // Show content with variables highlighted
+            const highlightedContent = templateContent.replace(/\{\{(\w+)\}\}/g, '<span class="badge bg-primary me-1">$1</span>');
+            templateContentElement.innerHTML = highlightedContent;
         }
         
         if (templateSubjectElement) {
             templateSubjectElement.textContent = templateSubject;
+        }
+        
+        // Update provider info
+        const providerElement = document.getElementById('preview-template-provider');
+        if (providerElement) {
+            providerElement.textContent = selectedProvider || 'Unknown';
         }
         
         // Store template data in campaignData
@@ -1334,13 +1370,15 @@ function hideTemplatePreview() {
     updateStepIndicator(1);
     
     // Clear template info
-    const templateNameElement = document.getElementById('template-name');
-    const templateContentElement = document.getElementById('template-content');
-    const templateSubjectElement = document.getElementById('template-subject');
+    const templateNameElement = document.getElementById('preview-template-name');
+    const templateContentElement = document.getElementById('preview-template-content');
+    const templateSubjectElement = document.getElementById('preview-template-subject');
+    const providerElement = document.getElementById('preview-template-provider');
     
-    if (templateNameElement) templateNameElement.textContent = '';
-    if (templateContentElement) templateContentElement.textContent = '';
-    if (templateSubjectElement) templateSubjectElement.textContent = '';
+    if (templateNameElement) templateNameElement.textContent = '-';
+    if (templateContentElement) templateContentElement.innerHTML = '<p class="text-muted">Select a template to preview its content...</p>';
+    if (templateSubjectElement) templateSubjectElement.textContent = '-';
+    if (providerElement) providerElement.textContent = '-';
     
     // Clear variables list
     const variablesList = document.getElementById('template-variables-list');

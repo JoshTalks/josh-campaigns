@@ -208,27 +208,38 @@ class BulkCSVProcessor:
         # Create lookup dictionaries
         email_lookup = {}
         phone_lookup = {}
+        combination_lookup = {}  # For email+phone combination
         
         for customer in existing_customers:
             if customer['email']:
                 email_lookup[customer['email']] = customer['id']
             if customer['phone']:
                 phone_lookup[customer['phone']] = customer['id']
+            # Create combination lookup
+            if customer['email'] and customer['phone']:
+                combination_lookup[f"{customer['email']}|{customer['phone']}"] = customer['id']
         
         return {
             'emails': email_lookup,
-            'phones': phone_lookup
+            'phones': phone_lookup,
+            'combinations': combination_lookup
         }
     
     def _find_existing_customer_id(self, data: Dict, existing_customers: Dict) -> int:
         """
-        Find existing customer ID based on email or phone
+        Find existing customer ID based on email+phone combination, then fallback to individual lookups
         """
-        # Check email first
+        # First priority: Check email+phone combination
+        if data['email'] and data['phone']:
+            combination_key = f"{data['email']}|{data['phone']}"
+            if combination_key in existing_customers['combinations']:
+                return existing_customers['combinations'][combination_key]
+        
+        # Second priority: Check email only (for backward compatibility)
         if data['email'] and data['email'] in existing_customers['emails']:
             return existing_customers['emails'][data['email']]
         
-        # Check phone
+        # Third priority: Check phone only (for backward compatibility)
         if data['phone'] and data['phone'] in existing_customers['phones']:
             return existing_customers['phones'][data['phone']]
         
