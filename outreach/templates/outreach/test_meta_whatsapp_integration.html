@@ -1,0 +1,248 @@
+{% extends 'outreach/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fab fa-whatsapp text-success"></i>
+                        Meta WhatsApp Cloud API Integration Test
+                    </h3>
+                    <p class="text-muted mb-0">
+                        Test Meta WhatsApp Cloud API functionality based on 
+                        <a href="https://developers.facebook.com/docs/whatsapp/cloud-api" target="_blank">
+                            official documentation
+                        </a>
+                    </p>
+                </div>
+                <div class="card-body">
+                    <!-- Configuration Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Configuration Status</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Access Token:</strong></td>
+                                        <td>
+                                            {% if settings.META_WHATSAPP_ACCESS_TOKEN %}
+                                                <span class="text-success">✓ Configured</span>
+                                            {% else %}
+                                                <span class="text-danger">✗ Missing</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Business Account ID:</strong></td>
+                                        <td>{{ settings.META_WHATSAPP_BUSINESS_ACCOUNT_ID|default:"Not set" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Phone Number ID:</strong></td>
+                                        <td>{{ settings.META_WHATSAPP_PHONE_NUMBER_ID|default:"Not set" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>API Version:</strong></td>
+                                        <td>{{ settings.META_WHATSAPP_API_VERSION|default:"v23.0" }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Quick Actions</h5>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'outreach:test_meta_whatsapp_integration' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-sync"></i> Refresh Templates
+                                </a>
+                                <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#helpModal">
+                                    <i class="fas fa-question-circle"></i> Help & Documentation
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Templates List -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5>Available Templates ({{ templates_count|default:0 }})</h5>
+                            {% if templates %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>ID</th>
+                                                <th>Status</th>
+                                                <th>Category</th>
+                                                <th>Language</th>
+                                                <th>Components</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for template in templates %}
+                                            <tr>
+                                                <td><code>{{ template.name }}</code></td>
+                                                <td><small>{{ template.id }}</small></td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if template.status == 'APPROVED' %}bg-success
+                                                        {% elif template.status == 'PENDING' %}bg-warning
+                                                        {% elif template.status == 'REJECTED' %}bg-danger
+                                                        {% else %}bg-secondary{% endif %}">
+                                                        {{ template.status }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ template.category }}</td>
+                                                <td>{{ template.language }}</td>
+                                                <td>
+                                                    {% for comp in template.components %}
+                                                        <small class="d-block">{{ comp.type }}: {{ comp.text|truncatechars:30 }}</small>
+                                                    {% endfor %}
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                            onclick="useTemplate('{{ template.name }}')">
+                                                        Use
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    No templates found. This might be due to:
+                                    <ul class="mb-0 mt-2">
+                                        <li>Invalid access token or phone number ID</li>
+                                        <li>No approved templates in your WhatsApp Business account</li>
+                                        <li>API connection issues</li>
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Test Message Form -->
+                    <div class="row">
+                        <div class="col-12">
+                            <h5>Send Test Message</h5>
+                            <form method="post" class="needs-validation" novalidate>
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="send_test_message">
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="phone" class="form-label">Phone Number *</label>
+                                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                                   placeholder="+1234567890" required>
+                                            <div class="form-text">Include country code (e.g., +1234567890)</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="template_name" class="form-label">Template Name *</label>
+                                            <input type="text" class="form-control" id="template_name" name="template_name" 
+                                                   placeholder="hello_world" required>
+                                            <div class="form-text">Use template name from the list above</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="parameters" class="form-label">Template Parameters (Optional)</label>
+                                    <input type="text" class="form-control" id="parameters" name="parameters" 
+                                           placeholder="John, 25%, SAVE25, 2024-12-31">
+                                    <div class="form-text">Comma-separated values for template variables</div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fab fa-whatsapp"></i> Send Test Message
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Test Results -->
+                    {% if test_result %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Test Result</h5>
+                            <div class="alert {% if test_result.success %}alert-success{% else %}alert-danger{% endif %}">
+                                <h6>
+                                    <i class="fas {% if test_result.success %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                                    {{ test_result.message }}
+                                </h6>
+                                {% if test_result.data %}
+                                <details class="mt-2">
+                                    <summary>Response Data</summary>
+                                    <pre class="mt-2"><code>{{ test_result.data|pprint }}</code></pre>
+                                </details>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Meta WhatsApp Integration Help</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Setup Requirements:</h6>
+                <ol>
+                    <li>Create a WhatsApp Business account on <a href="https://business.facebook.com" target="_blank">Facebook Business</a></li>
+                    <li>Get your access token from the WhatsApp Business API</li>
+                    <li>Get your phone number ID from the WhatsApp Business API</li>
+                    <li>Create and approve message templates</li>
+                </ol>
+                
+                <h6>Environment Variables:</h6>
+                <ul>
+                    <li><code>META_WHATSAPP_ACCESS_TOKEN</code> - Your WhatsApp Business API access token</li>
+                    <li><code>META_WHATSAPP_BUSINESS_ACCOUNT_ID</code> - Your business account ID</li>
+                    <li><code>META_WHATSAPP_PHONE_NUMBER_ID</code> - Your phone number ID</li>
+                    <li><code>META_WHATSAPP_API_VERSION</code> - API version (default: v23.0)</li>
+                </ul>
+                
+                <h6>Testing:</h6>
+                <ul>
+                    <li>Use a real phone number for testing</li>
+                    <li>Ensure the template is approved before sending</li>
+                    <li>Check the response data for message IDs and status</li>
+                </ul>
+                
+                <h6>Documentation:</h6>
+                <p>
+                    <a href="https://developers.facebook.com/docs/whatsapp/cloud-api" target="_blank">
+                        Meta WhatsApp Cloud API Documentation
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function useTemplate(templateName) {
+    document.getElementById('template_name').value = templateName;
+}
+</script>
+{% endblock %}
+

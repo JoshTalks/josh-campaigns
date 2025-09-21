@@ -8,6 +8,9 @@ from django.utils import timezone
 from .models import Customer, Campaign, Message, MessageTemplate, VendorTemplate
 from .forms import CustomerUploadForm, CustomerManualForm, CampaignForm, MessageTemplateForm, CampaignSearchForm
 import csv
+import logging
+
+logger = logging.getLogger(__name__)
 import io
 from .message_delivery import send_campaign_messages_sync
 from .csv_processor import process_csv_upload_sync
@@ -465,13 +468,17 @@ def get_vendor_templates(request):
 
     try:
         # Define which providers use API vs manual templates
-        api_providers = ['msg91-email']  # Add more API-based providers here
+        api_providers = ['msg91-email', 'meta-whatsapp', 'gupshup-whatsapp']  # Add more API-based providers here
         manual_providers = ['gupshup-sms']  # Add more manual providers here
         
         if provider in api_providers:
-            # API-based template fetching (MSG91 Email)
+            # API-based template fetching
             if channel == 'email' and provider == 'msg91-email':
                 return _fetch_msg91_templates(request, channel, provider)
+            elif channel == 'whatsapp' and provider == 'meta-whatsapp':
+                return _fetch_meta_whatsapp_templates(request, channel, provider)
+            elif channel == 'whatsapp' and provider == 'gupshup-whatsapp':
+                return _fetch_gupshup_whatsapp_templates(request, channel, provider)
             else:
                 return JsonResponse({'templates': [], 'error': f'API provider {provider} not supported for channel {channel}'})
                 
@@ -539,6 +546,202 @@ def _fetch_msg91_templates(request, channel, provider):
             
     except Exception as e:
         return JsonResponse({'templates': [], 'error': f'Error fetching MSG91 templates: {str(e)}'})
+
+
+def _fetch_meta_whatsapp_templates(request, channel, provider):
+    """Fetch templates from Meta WhatsApp API and upsert to database"""
+    try:
+        from .meta_whatsapp_service import MetaWhatsAppService
+        
+        # Fetch templates from Meta WhatsApp API
+        meta_service = MetaWhatsAppService()
+        success, templates_data, error_msg = meta_service.get_message_templates()
+        
+        if not success:
+            logger.error(f"Meta WhatsApp API error: {error_msg}")
+            # Fallback to manual templates if API fails
+            return _fetch_manual_templates(request, channel, provider)
+        
+        if not templates_data:
+            logger.warning("No templates returned from Meta WhatsApp API")
+            # Fallback to manual templates if no data
+            return _fetch_manual_templates(request, channel, provider)
+        
+        # Process and upsert templates to database
+        processed_templates = []
+        for template_data in templates_data:
+            try:
+                # Extract template information
+                template_name = template_data.get('name', '')
+                template_id = template_data.get('id', '')
+                template_status = template_data.get('status', '')
+                
+                # Only process approved templates
+                if template_status != 'APPROVED':
+                    continue
+                
+                # Extract components to build content
+                components = template_data.get('components', [])
+                content = ""
+                subject = ""
+                
+                for component in components:
+                    if component.get('type') == 'HEADER':
+                        header_text = component.get('text', '')
+                        if header_text:
+                            subject = header_text
+                    elif component.get('type') == 'BODY':
+                        body_text = component.get('text', '')
+                        if body_text:
+                            content = body_text
+                
+                # Create or update template in database
+                template, created = MessageTemplate.objects.get_or_create(
+                    external_id=template_id,
+                    channel=channel,
+                    provider=provider,
+                    defaults={
+                        'name': template_name,
+                        'content': content,
+                        'subject': subject,
+                        'created_by': request.user,
+                    }
+                )
+                
+                if not created:
+                    # Update existing template
+                    template.name = template_name
+                    template.content = content
+                    template.subject = subject
+                    template.save()
+                
+                # Extract variables from content using regex
+                import re
+                variables = re.findall(r'\{\{(\w+)\}\}', content)
+                # Remove duplicates while preserving order
+                seen = set()
+                variables = [v for v in variables if not (v in seen or seen.add(v))]
+                
+                processed_templates.append({
+                    'id': str(template.id),
+                    'name': template_name,
+                    'external_id': template_id,
+                    'content': content,
+                    'subject': subject,
+                    'preview_link': '',
+                    'variables': variables,
+                    'source': 'api'
+                })
+                
+            except Exception as e:
+                logger.error(f"Error processing Meta WhatsApp template {template_data.get('name', 'unknown')}: {str(e)}")
+                continue
+        
+        logger.info(f"Successfully processed {len(processed_templates)} Meta WhatsApp templates")
+        return JsonResponse({'templates': processed_templates})
+        
+    except Exception as e:
+        logger.error(f"Error fetching Meta WhatsApp templates: {str(e)}")
+        # Fallback to manual templates
+        return _fetch_manual_templates(request, channel, provider)
+
+
+def _fetch_gupshup_whatsapp_templates(request, channel, provider):
+    """Fetch templates from Gupshup WhatsApp API and upsert to database"""
+    try:
+        from .gupshup_whatsapp_service import GupshupWhatsAppService
+        
+        # Fetch templates from Gupshup WhatsApp API
+        gupshup_service = GupshupWhatsAppService()
+        success, templates_data, error_msg = gupshup_service.get_message_templates()
+        
+        if not success:
+            logger.error(f"Gupshup WhatsApp API error: {error_msg}")
+            # Fallback to manual templates if API fails
+            return _fetch_manual_templates(request, channel, provider)
+        
+        if not templates_data:
+            logger.warning("No templates returned from Gupshup WhatsApp API")
+            # Fallback to manual templates if no data
+            return _fetch_manual_templates(request, channel, provider)
+        
+        # Process and upsert templates to database
+        processed_templates = []
+        for template_data in templates_data:
+            try:
+                # Extract template information
+                template_name = template_data.get('name', '')
+                template_id = template_data.get('id', '')
+                template_status = template_data.get('status', '')
+                
+                # Only process approved templates
+                if template_status != 'APPROVED':
+                    continue
+                
+                # Extract components to build content
+                components = template_data.get('components', [])
+                content = ""
+                subject = ""
+                
+                for component in components:
+                    if component.get('type') == 'HEADER':
+                        header_text = component.get('text', '')
+                        if header_text:
+                            subject = header_text
+                    elif component.get('type') == 'BODY':
+                        body_text = component.get('text', '')
+                        if body_text:
+                            content = body_text
+                
+                # Create or update template in database
+                template, created = MessageTemplate.objects.get_or_create(
+                    external_id=template_id,
+                    channel=channel,
+                    provider=provider,
+                    defaults={
+                        'name': template_name,
+                        'content': content,
+                        'subject': subject,
+                        'created_by': request.user,
+                    }
+                )
+                
+                if not created:
+                    # Update existing template
+                    template.name = template_name
+                    template.content = content
+                    template.subject = subject
+                    template.save()
+                
+                # Extract variables from content using regex
+                import re
+                variables = re.findall(r'\{\{(\w+)\}\}', content)
+                # Remove duplicates while preserving order
+                seen = set()
+                variables = [v for v in variables if not (v in seen or seen.add(v))]
+                
+                processed_templates.append({
+                    'id': str(template.id),
+                    'name': template_name,
+                    'external_id': template_id,
+                    'content': content,
+                    'subject': subject,
+                    'preview_link': '',
+                    'variables': variables,
+                    'source': 'api'
+                })
+                
+            except Exception as e:
+                logger.error(f"Error processing Gupshup WhatsApp template {template_data.get('name', 'unknown')}: {str(e)}")
+                continue
+        
+        logger.info(f"Successfully processed {len(processed_templates)} Gupshup WhatsApp templates")
+        return JsonResponse({'templates': processed_templates})
+        
+    except Exception as e:
+        logger.error(f"Error fetching Gupshup WhatsApp templates: {str(e)}")
+        # Fallback to manual templates
+        return _fetch_manual_templates(request, channel, provider)
 
 
 def _fetch_manual_templates(request, channel, provider):
@@ -687,6 +890,78 @@ def test_msg91_integration(request):
     }
     
     return render(request, 'outreach/test_msg91_integration.html', context)
+
+@login_required
+def test_meta_whatsapp_integration(request):
+    """Test Meta WhatsApp integration from web interface"""
+    context = {
+        'page_title': 'Test Meta WhatsApp Integration',
+        'breadcrumbs': [
+            {'name': 'Dashboard', 'url': reverse('outreach:dashboard')},
+            {'name': 'Test Meta WhatsApp', 'url': None}
+        ],
+        'templates': [],
+        'test_result': None
+    }
+    
+    try:
+        from .meta_whatsapp_service import MetaWhatsAppService
+        
+        # Fetch templates
+        service = MetaWhatsAppService()
+        success, templates, error_msg = service.get_message_templates(limit=20)
+        
+        if success:
+            context['templates'] = templates
+            context['templates_count'] = len(templates)
+        else:
+            messages.warning(request, f'Could not fetch templates: {error_msg}')
+            
+    except Exception as e:
+        messages.error(request, f'Error initializing Meta WhatsApp service: {str(e)}')
+    
+    if request.method == 'POST':
+        try:
+            action = request.POST.get('action')
+            
+            if action == 'send_test_message':
+                phone = request.POST.get('phone', '').strip()
+                template_name = request.POST.get('template_name', '').strip()
+                parameters = request.POST.get('parameters', '').strip()
+                
+                if not phone or not template_name:
+                    messages.error(request, 'Phone number and template name are required')
+                else:
+                    # Parse parameters if provided
+                    param_list = []
+                    if parameters:
+                        param_list = [p.strip() for p in parameters.split(',') if p.strip()]
+                    
+                    success, response_msg, response_data = service.send_message(
+                        to_phone=phone,
+                        template_name=template_name,
+                        language_code='en_US',
+                        parameters=param_list if param_list else None
+                    )
+                    
+                    if success:
+                        context['test_result'] = {
+                            'success': True,
+                            'message': response_msg,
+                            'data': response_data
+                        }
+                        messages.success(request, f'Message sent successfully: {response_msg}')
+                    else:
+                        context['test_result'] = {
+                            'success': False,
+                            'message': response_msg
+                        }
+                        messages.error(request, f'Failed to send message: {response_msg}')
+                        
+        except Exception as e:
+            messages.error(request, f'Error testing Meta WhatsApp: {str(e)}')
+    
+    return render(request, 'outreach/test_meta_whatsapp_integration.html', context)
 
 @csrf_exempt
 @require_http_methods(["POST"])

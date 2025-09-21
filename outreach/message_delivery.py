@@ -273,16 +273,140 @@ def clean_phone_number(phone):
 
 def send_whatsapp_message(campaign, customer, message):
     """
-    Send WhatsApp message (placeholder for future WhatsApp provider integration)
+    Send WhatsApp message using the configured provider (Meta WhatsApp)
     """
     try:
-        # TODO: Implement WhatsApp sending logic for different providers
-        # For now, just log and mark as failed
-        logger.info(f"WhatsApp sending not yet implemented for provider: {campaign.provider}")
-        message.error_message = "WhatsApp sending not yet implemented"
-        return False
+        # Create message object if it doesn't exist
+        if message is None:
+            from .models import Message
+            message = Message.objects.create(
+                campaign=campaign,
+                customer=customer,
+                status='pending'
+            )
+        
+        if not customer.phone:
+            message.error_message = "Customer phone missing"
+            message.status = 'failed'
+            message.save()
+            return False
+
+        # Clean and format phone number for WhatsApp
+        phone = clean_phone_number(customer.phone)
+        if not phone:
+            message.error_message = "Invalid phone number format"
+            message.status = 'failed'
+            message.save()
+            return False
+
+        if campaign.provider == 'meta-whatsapp':
+            from .meta_whatsapp_service import MetaWhatsAppService
+            
+            # Get template name from campaign template
+            template_name = campaign.template.name if campaign.template else 'hello_world'
+            
+            # Prepare template parameters from campaign content and custom placeholders
+            parameters = []
+            if campaign.content:
+                # Extract parameters from template content
+                import re
+                template_vars = re.findall(r'\{\{(\w+)\}\}', campaign.content)
+                
+                for var in template_vars:
+                    if var == 'name':
+                        parameters.append(customer.name or 'Customer')
+                    elif var == 'phone':
+                        parameters.append(phone)
+                    elif var == 'email':
+                        parameters.append(customer.email or '')
+                    elif var == 'address':
+                        parameters.append(customer.address or '')
+                    elif var == 'job_link':
+                        parameters.append(customer.job_link or '')
+                    elif hasattr(campaign, 'custom_placeholders') and campaign.custom_placeholders:
+                        # Get from custom placeholders
+                        parameters.append(campaign.custom_placeholders.get(var, ''))
+                    else:
+                        # Default value for unknown variables
+                        parameters.append('')
+            
+            meta_service = MetaWhatsAppService()
+            success, response_msg, response_data = meta_service.send_message(
+                to_phone=phone,
+                template_name=template_name,
+                language_code='en_US',
+                parameters=parameters
+            )
+            
+            if not success:
+                message.error_message = response_msg
+                message.status = 'failed'
+                message.save()
+                return False
+            else:
+                # Update message status to sent and store message ID if available
+                message.status = 'sent'
+                message.sent_at = timezone.now()
+                if response_data and 'messages' in response_data:
+                    # Store the WhatsApp message ID for tracking
+                    whatsapp_msg_id = response_data['messages'][0].get('id')
+                    if whatsapp_msg_id:
+                        message.external_id = whatsapp_msg_id
+                message.error_message = ''
+                message.save()
+                return True
+                
+        elif campaign.provider == 'gupshup-whatsapp':
+            from .gupshup_whatsapp_service import GupshupWhatsAppService
+            
+            # Prepare message content with variable replacement
+            message_content = campaign.content or ''
+            if message_content:
+                # Replace variables in the message content
+                message_content = message_content.replace('{{name}}', customer.name or 'Customer')
+                message_content = message_content.replace('{{phone}}', phone)
+                message_content = message_content.replace('{{email}}', customer.email or '')
+                message_content = message_content.replace('{{address}}', customer.address or '')
+                message_content = message_content.replace('{{job_link}}', customer.job_link or '')
+                
+                # Replace custom placeholders
+                if hasattr(campaign, 'custom_placeholders') and campaign.custom_placeholders:
+                    for key, value in campaign.custom_placeholders.items():
+                        message_content = message_content.replace(f'{{{{{key}}}}}', str(value))
+            
+            # Get header from campaign subject
+            header = campaign.subject or ''
+            
+            gupshup_service = GupshupWhatsAppService()
+            success, response_msg = gupshup_service.send_message(
+                to_phone=phone,
+                message=message_content,
+                header=header,
+                is_template=True
+            )
+            
+            if not success:
+                message.error_message = response_msg
+                message.status = 'failed'
+                message.save()
+                return False
+            else:
+                # Update message status to sent
+                message.status = 'sent'
+                message.sent_at = timezone.now()
+                message.error_message = ''
+                message.save()
+                return True
+        else:
+            logger.info(f"WhatsApp provider not supported yet: {campaign.provider}")
+            message.error_message = f"Unsupported WhatsApp provider: {campaign.provider}"
+            message.status = 'failed'
+            message.save()
+            return False
         
     except Exception as e:
         logger.error(f"Error sending WhatsApp to {customer.phone}: {str(e)}")
         message.error_message = str(e)
+        message.status = 'failed'
+        message.save()
         return False

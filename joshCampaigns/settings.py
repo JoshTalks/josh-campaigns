@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-)ljd&1l11d1m)26i@2c=401mbk-z&7hi3qij9*!4%5wm%kel-g"
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)ljd&1l11d1m)26i@2c=401mbk-z&7hi3qij9*!4%5wm%kel-g')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
@@ -261,3 +261,26 @@ MSG91_EMAIL_ENDPOINT = "https://control.msg91.com/api/v5/email"
 MSG91_EMAIL_FROM = os.environ.get('MSG91_EMAIL_FROM', 'noreply@yourdomain.com')
 MSG91_EMAIL_FROM_NAME = os.environ.get('MSG91_EMAIL_FROM_NAME', 'Your Company Name')
 MSG91_EMAIL_DOMAIN = os.environ.get('MSG91_EMAIL_DOMAIN', 'joshcampaigns.com')
+
+# Gupshup Configuration for SMS and WhatsApp
+GUPSHUP_BASE_URL = os.environ.get('GUPSHUP_BASE_URL', 'https://enterprise.smsgupshup.com/GatewayAPI/rest')
+GUPSHUP_SENDER_ID = os.environ.get('GUPSHUP_SENDER_ID', 'JOSHSK')
+GUPSHUP_USERID_OTP = os.environ.get('GUPSHUP_USERID_OTP', '2000196837')
+GUPSHUP_PASSWORD_OTP = os.environ.get('GUPSHUP_PASSWORD_OTP', 'p#mebmD8')
+GUPSHUP_USERID_TXN = os.environ.get('GUPSHUP_USERID_TXN', '2000196838')
+GUPSHUP_PASSWORD_TXN = os.environ.get('GUPSHUP_PASSWORD_TXN', 'CrzD*2Wg')
+
+# Gupshup WhatsApp Configuration
+GUPSHUP_WHATSAPP_USERID = os.environ.get('GUPSHUP_WHATSAPP_USERID', '2000210642')
+GUPSHUP_WHATSAPP_PASSWORD = os.environ.get('GUPSHUP_WHATSAPP_PASSWORD', 'uAF#6EHR')
+GUPSHUP_WHATSAPP_APP_ID = os.environ.get('GUPSHUP_WHATSAPP_APP_ID', '2000210642')
+GUPSHUP_WHATSAPP_API_KEY = os.environ.get('GUPSHUP_WHATSAPP_API_KEY', 'b9ba5c7d59ef9788d5f39b94ba840edcc21ed945a712e6398bc17e0fca261d05')
+GUPSHUP_WHATSAPP_API_URL = os.environ.get('GUPSHUP_WHATSAPP_API_URL', 'https://api.gupshup.io/wa/app')
+GUPSHUP_WHATSAPP_MEDIA_URL = os.environ.get('GUPSHUP_WHATSAPP_MEDIA_URL', 'https://mediaapi.smsgupshup.com/GatewayAPI/rest')
+
+# Meta WhatsApp Configuration
+META_WHATSAPP_ACCESS_TOKEN = os.environ.get('META_WHATSAPP_ACCESS_TOKEN', 'EAASP1xCeppwBPXcdjUJGYo3ZBWewDwXxcLGBMjrApUHZCmLH1QhqijFGcSZC1SZC5gOWYK2WxT8UfPkv69s9TzZBZACROnpZAleDbS1kDRQevmWNIgdJiXqVbFL13GD0llCewNDV5dd38sW2nFV8XceCPBHo4TYCf1szmZBbEs8AlFKSi8sUV05pFztg8BzBs832e80ZCsKXto2XUN6XrqpbDu7AZBfUK4gEjPprUZBBdWwFLeCVjIZD')
+META_WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('META_WHATSAPP_BUSINESS_ACCOUNT_ID', '102290129340398')
+META_WHATSAPP_PHONE_NUMBER_ID = os.environ.get('META_WHATSAPP_PHONE_NUMBER_ID', '')
+META_WHATSAPP_API_VERSION = os.environ.get('META_WHATSAPP_API_VERSION', 'v23.0')
+META_WHATSAPP_BASE_URL = f"https://graph.facebook.com/{META_WHATSAPP_API_VERSION}"
